@@ -22,31 +22,35 @@
 ### Installation
 
 1. Clone the repository:
-```bash
-git clone https://github.com/tldrwtf/pokedo.git
-cd pokedo
-```
 
-2. Create a virtual environment:
-```bash
-python -m venv venv
+    ```bash
+    git clone https://github.com/tldrwtf/pokedo.git
+    cd pokedo
+    ```
 
-# Windows
-venv\Scripts\activate
+1. Create a virtual environment:
 
-# macOS/Linux
-source venv/bin/activate
-```
+    ```bash
+    python -m venv venv
 
-3. Install development dependencies:
-```bash
-pip install -e ".[dev]"
-```
+    # Windows
+    venv\Scripts\activate
 
-4. Initialize the application (for testing):
-```bash
-pokedo init --name "Developer" --quick
-```
+    # macOS/Linux
+    source venv/bin/activate
+    ```
+
+1. Install development dependencies (formatter, linter, tests):
+
+    ```bash
+    pip install -e ".[dev]"
+    ```
+
+1. Initialize the application (for testing):
+
+    ```bash
+    pokedo init --name "Developer" --quick
+    ```
 
 ### Development Commands
 
@@ -68,13 +72,22 @@ pytest tests/test_tasks.py
 
 # Run with verbose output
 pytest -v
+
+# Format code (Black)
+black .
+
+# Sort imports (isort profile=black)
+isort .
+
+# Lint (Ruff)
+ruff check .
 ```
 
 ---
 
 ## Project Structure
 
-```
+```text
 pokedo/
 ├── cli/                  # Command-line interface
 │   ├── app.py            # Main Typer application
@@ -213,7 +226,7 @@ def safe_operation() -> None:
 
 ### Test Structure
 
-```
+```text
 tests/
 ├── __init__.py
 ├── conftest.py           # Shared fixtures
@@ -334,7 +347,7 @@ def new_command(
     console.print(f"Running with {arg}")
 ```
 
-2. Register in `cli/app.py`:
+1. Register in `cli/app.py`:
 
 ```python
 from pokedo.cli.commands import example
@@ -357,7 +370,7 @@ class NewModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
 ```
 
-2. Add database operations in `data/database.py`:
+1. Add database operations in `data/database.py`:
 
 ```python
 def create_new_model_table(self) -> None:
@@ -390,9 +403,9 @@ class NewWellbeingEntry(BaseModel):
     note: str | None = None
 ```
 
-2. Add database table in `data/database.py`
+1. Add database table in `data/database.py`
 
-3. Add CLI command in `cli/commands/wellbeing.py`:
+1. Add CLI command in `cli/commands/wellbeing.py`:
 
 ```python
 @app.command()
@@ -427,7 +440,7 @@ def new_tracker(
 
 ### Branch Naming
 
-```
+```text
 feature/add-trading-system
 bugfix/fix-evolution-crash
 docs/update-readme
@@ -438,7 +451,7 @@ refactor/simplify-catch-rate
 
 Follow conventional commit format:
 
-```
+```text
 feat: add Pokemon trading system
 fix: resolve crash when evolving shiny Pokemon
 docs: update installation instructions
