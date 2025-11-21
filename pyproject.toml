@@ -24,6 +24,9 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "black>=24.0.0",
+    "ruff>=0.6.0",
+    "isort>=5.13.0",
 ]
 
 [project.scripts]
@@ -35,3 +38,29 @@ packages = ["pokedo"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+preview = true
+
+[tool.isort]
+profile = "black"
+line_length = 100
+combine_as_imports = true
+known_first_party = ["pokedo"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["pokedo", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "B", "UP", "RUF"]
+ignore = ["E203", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pokedo"]
+
+[tool.ruff.format]
+preview = true
