@@ -492,7 +492,7 @@ Describe how you tested the changes.
 
 ## Getting Help
 
-- **Issues:** Report bugs or request features via GitHub Issues
+- **Issues:** Report bugs or request features via [GitHub Issues](https://github.com/tldrwtf/pokedo/issues/new)
 - **Discussions:** Ask questions in GitHub Discussions
 - **Documentation:** See `docs/` folder for detailed docs
 
