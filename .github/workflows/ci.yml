@@ -25,6 +25,8 @@ jobs:
 
       - name: Lint
         run: |
+          ruff check .
+          black --check .
           isort --check-only .
 
       - name: Run tests
