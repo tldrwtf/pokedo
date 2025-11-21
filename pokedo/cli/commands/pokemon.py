@@ -1,17 +1,15 @@
 """Pokemon management CLI commands."""
 
-from typing import Optional
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.prompt import Confirm
 from rich.table import Table
-from rich import box
 
-from pokedo.core.pokemon import Pokemon
+from pokedo.cli.ui.displays import TYPE_COLORS, display_pokemon, display_pokemon_list
 from pokedo.data.database import db
-from pokedo.data.pokeapi import create_pokemon_sync, create_pokedex_entry_sync
-from pokedo.cli.ui.displays import display_pokemon, display_pokemon_list, TYPE_COLORS
+from pokedo.data.pokeapi import create_pokemon_sync
 
 app = typer.Typer(help="Pokemon management commands")
 console = Console()

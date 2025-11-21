@@ -1,10 +1,9 @@
 """Interactive menu components for the CLI."""
 
-from typing import Optional, Callable
-from rich.console import Console
-from rich.prompt import Prompt, IntPrompt, Confirm
-from rich.panel import Panel
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm, IntPrompt, Prompt
 
 console = Console()
 
@@ -140,7 +139,7 @@ def prompt_task_details() -> dict:
     }
 
 
-def prompt_mood() -> tuple[int, Optional[str]]:
+def prompt_mood() -> tuple[int, str | None]:
     """Prompt for mood entry."""
     console.print("\nMood levels: 1=Very Low, 2=Low, 3=Neutral, 4=Good, 5=Great")
     level = IntPrompt.ask("How are you feeling?", default=3)
@@ -173,7 +172,7 @@ def confirm_action(message: str) -> bool:
     return Confirm.ask(message)
 
 
-def select_from_list(items: list, prompt: str = "Select") -> Optional[int]:
+def select_from_list(items: list, prompt: str = "Select") -> int | None:
     """Let user select from a numbered list."""
     if not items:
         return None

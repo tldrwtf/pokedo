@@ -1,18 +1,14 @@
 """Rich display components for the CLI."""
 
-from datetime import date
-from typing import Optional
 
+from rich import box
+from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.progress import Progress, BarColumn, TextColumn
-from rich.text import Text
-from rich.columns import Columns
-from rich import box
 
-from pokedo.core.task import Task, TaskDifficulty, TaskPriority
 from pokedo.core.pokemon import Pokemon
+from pokedo.core.task import Task, TaskDifficulty, TaskPriority
 from pokedo.core.trainer import Trainer
 from pokedo.core.wellbeing import DailyWellbeing, MoodLevel
 
@@ -150,7 +146,7 @@ def display_pokemon(pokemon: Pokemon, detailed: bool = False) -> None:
 [dim]Active:[/dim] {'Yes' if pokemon.is_active else 'No'}"""
 
         if pokemon.can_evolve and pokemon.evolution_id:
-            content += f"\n[green]Ready to evolve![/green]"
+            content += "\n[green]Ready to evolve![/green]"
 
     console.print(Panel(content, box=box.ROUNDED))
 
@@ -271,7 +267,7 @@ def display_task_completion_result(
     console.print(Panel(content, box=box.ROUNDED))
 
 
-def display_stats_dashboard(trainer: Trainer, today_tasks: int, wellbeing: Optional[DailyWellbeing] = None) -> None:
+def display_stats_dashboard(trainer: Trainer, today_tasks: int, wellbeing: DailyWellbeing | None = None) -> None:
     """Display stats dashboard."""
     # Left panel - Trainer stats
     xp_current, xp_needed = trainer.xp_progress

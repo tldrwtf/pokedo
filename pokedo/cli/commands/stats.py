@@ -3,13 +3,17 @@
 from datetime import date
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
-from pokedo.data.database import db
+from pokedo.cli.ui.displays import (
+    display_stats_dashboard,
+    display_streak_info,
+    display_trainer_card,
+)
 from pokedo.core.trainer import AVAILABLE_BADGES
-from pokedo.cli.ui.displays import display_trainer_card, display_streak_info, display_stats_dashboard
+from pokedo.data.database import db
 
 app = typer.Typer(help="Statistics and profile commands")
 console = Console()

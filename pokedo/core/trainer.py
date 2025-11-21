@@ -1,7 +1,7 @@
 """Trainer (player) profile model."""
 
-from datetime import datetime, date
-from typing import Optional
+from datetime import date, datetime
+
 from pydantic import BaseModel, Field
 
 from pokedo.utils.helpers import calculate_level, xp_to_next_level
@@ -14,7 +14,7 @@ class TrainerBadge(BaseModel):
     name: str
     description: str
     icon: str  # ASCII/emoji representation
-    earned_at: Optional[datetime] = None
+    earned_at: datetime | None = None
     is_earned: bool = False
 
     # Requirements
@@ -26,10 +26,10 @@ class Streak(BaseModel):
     """Streak tracking for various activities."""
 
     streak_type: str  # "daily", "category", "wellbeing"
-    category: Optional[str] = None  # For category-specific streaks
+    category: str | None = None  # For category-specific streaks
     current_count: int = 0
     best_count: int = 0
-    last_activity_date: Optional[date] = None
+    last_activity_date: date | None = None
 
     def update(self, activity_date: date) -> bool:
         """Update streak, returns True if streak continued."""
@@ -60,7 +60,7 @@ class Streak(BaseModel):
 class Trainer(BaseModel):
     """The player's trainer profile."""
 
-    id: Optional[int] = None
+    id: int | None = None
     name: str = "Trainer"
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -89,8 +89,8 @@ class Trainer(BaseModel):
     inventory: dict[str, int] = Field(default_factory=dict)
 
     # Settings
-    favorite_pokemon_id: Optional[int] = None
-    last_active_date: Optional[date] = None
+    favorite_pokemon_id: int | None = None
+    last_active_date: date | None = None
 
     @property
     def level(self) -> int:

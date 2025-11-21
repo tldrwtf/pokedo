@@ -1,25 +1,26 @@
 """Task management CLI commands."""
 
-from datetime import datetime, date, timedelta
-from typing import Optional
+from datetime import date, datetime, timedelta
 
 import typer
 from rich.console import Console
 from rich.prompt import Confirm
 
-from pokedo.core.task import Task, TaskCategory, TaskDifficulty, TaskPriority, RecurrenceType
-from pokedo.core.rewards import reward_engine
-from pokedo.data.database import db
 from pokedo.cli.ui.displays import (
-    display_task_list, display_task_detail, display_task_completion_result,
-    display_encounter
+    display_encounter,
+    display_task_completion_result,
+    display_task_detail,
+    display_task_list,
 )
+from pokedo.core.rewards import reward_engine
+from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
+from pokedo.data.database import db
 
 app = typer.Typer(help="Task management commands")
 console = Console()
 
 
-def parse_due_date(due: str) -> Optional[date]:
+def parse_due_date(due: str) -> date | None:
     """Parse due date from string."""
     due_lower = due.lower()
     today = date.today()
@@ -43,9 +44,9 @@ def add_task(
     category: TaskCategory = typer.Option(TaskCategory.PERSONAL, "--category", "-c", help="Task category"),
     difficulty: TaskDifficulty = typer.Option(TaskDifficulty.MEDIUM, "--difficulty", "-d", help="Task difficulty"),
     priority: TaskPriority = typer.Option(TaskPriority.MEDIUM, "--priority", "-p", help="Task priority"),
-    due: Optional[str] = typer.Option(None, "--due", help="Due date (YYYY-MM-DD, today, tomorrow)"),
-    description: Optional[str] = typer.Option(None, "--desc", help="Task description"),
-    tags: Optional[str] = typer.Option(None, "--tags", "-t", help="Comma-separated tags"),
+    due: str | None = typer.Option(None, "--due", help="Due date (YYYY-MM-DD, today, tomorrow)"),
+    description: str | None = typer.Option(None, "--desc", help="Task description"),
+    tags: str | None = typer.Option(None, "--tags", "-t", help="Comma-separated tags"),
     recurrence: RecurrenceType = typer.Option(RecurrenceType.NONE, "--recur", "-r", help="Recurrence pattern")
 ) -> None:
     """Add a new task."""
@@ -73,7 +74,7 @@ def list_tasks(
     today: bool = typer.Option(False, "--today", help="Show only today's tasks"),
     week: bool = typer.Option(False, "--week", help="Show this week's tasks"),
     all_tasks: bool = typer.Option(False, "--all", "-a", help="Include completed tasks"),
-    category: Optional[TaskCategory] = typer.Option(None, "--category", "-c", help="Filter by category")
+    category: TaskCategory | None = typer.Option(None, "--category", "-c", help="Filter by category")
 ) -> None:
     """List tasks."""
     if today:
@@ -220,12 +221,12 @@ def _create_recurring_task(original: Task) -> None:
 @app.command("edit")
 def edit_task(
     task_id: int = typer.Argument(..., help="Task ID"),
-    title: Optional[str] = typer.Option(None, "--title", help="New title"),
-    category: Optional[TaskCategory] = typer.Option(None, "--category", "-c"),
-    difficulty: Optional[TaskDifficulty] = typer.Option(None, "--difficulty", "-d"),
-    priority: Optional[TaskPriority] = typer.Option(None, "--priority", "-p"),
-    due: Optional[str] = typer.Option(None, "--due"),
-    description: Optional[str] = typer.Option(None, "--desc")
+    title: str | None = typer.Option(None, "--title", help="New title"),
+    category: TaskCategory | None = typer.Option(None, "--category", "-c"),
+    difficulty: TaskDifficulty | None = typer.Option(None, "--difficulty", "-d"),
+    priority: TaskPriority | None = typer.Option(None, "--priority", "-p"),
+    due: str | None = typer.Option(None, "--due"),
+    description: str | None = typer.Option(None, "--desc")
 ) -> None:
     """Edit a task."""
     task = db.get_task(task_id)

@@ -1,14 +1,13 @@
 """PokeAPI client for fetching Pokemon data and sprites."""
 
 import json
-import httpx
-from pathlib import Path
-from typing import Optional
 from datetime import datetime
+from pathlib import Path
 
+import httpx
+
+from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity
 from pokedo.utils.config import config
-from pokedo.core.pokemon import Pokemon, PokedexEntry, PokemonRarity
-
 
 # Comprehensive rarity classification for all Pokemon generations
 
@@ -106,14 +105,14 @@ class PokeAPIClient:
         self._species_cache: dict[int, dict] = {}
         config.ensure_dirs()
 
-    async def get_pokemon(self, pokemon_id: int) -> Optional[dict]:
+    async def get_pokemon(self, pokemon_id: int) -> dict | None:
         """Fetch Pokemon data from API or cache."""
         if pokemon_id in self._pokemon_cache:
             return self._pokemon_cache[pokemon_id]
 
         cache_file = self.cache_dir / f"pokemon_{pokemon_id}.json"
         if cache_file.exists():
-            with open(cache_file, "r") as f:
+            with open(cache_file) as f:
                 data = json.load(f)
                 self._pokemon_cache[pokemon_id] = data
                 return data
@@ -132,14 +131,14 @@ class PokeAPIClient:
             except httpx.HTTPError:
                 return None
 
-    async def get_species(self, pokemon_id: int) -> Optional[dict]:
+    async def get_species(self, pokemon_id: int) -> dict | None:
         """Fetch Pokemon species data (for evolution info)."""
         if pokemon_id in self._species_cache:
             return self._species_cache[pokemon_id]
 
         cache_file = self.cache_dir / f"species_{pokemon_id}.json"
         if cache_file.exists():
-            with open(cache_file, "r") as f:
+            with open(cache_file) as f:
                 data = json.load(f)
                 self._species_cache[pokemon_id] = data
                 return data
@@ -157,7 +156,7 @@ class PokeAPIClient:
             except httpx.HTTPError:
                 return None
 
-    async def get_evolution_chain(self, chain_url: str) -> Optional[dict]:
+    async def get_evolution_chain(self, chain_url: str) -> dict | None:
         """Fetch evolution chain data."""
         async with httpx.AsyncClient() as client:
             try:
@@ -167,7 +166,7 @@ class PokeAPIClient:
             except httpx.HTTPError:
                 return None
 
-    async def download_sprite(self, pokemon_id: int, is_shiny: bool = False) -> Optional[Path]:
+    async def download_sprite(self, pokemon_id: int, is_shiny: bool = False) -> Path | None:
         """Download and cache Pokemon sprite."""
         sprite_type = "shiny" if is_shiny else "normal"
         sprite_file = self.sprites_dir / f"{pokemon_id}_{sprite_type}.png"
@@ -205,7 +204,7 @@ class PokeAPIClient:
         else:
             return f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{pokemon_id}.png"
 
-    async def create_pokedex_entry(self, pokemon_id: int) -> Optional[PokedexEntry]:
+    async def create_pokedex_entry(self, pokemon_id: int) -> PokedexEntry | None:
         """Create a PokedexEntry from API data."""
         pokemon_data = await self.get_pokemon(pokemon_id)
         if not pokemon_data:
@@ -245,8 +244,8 @@ class PokeAPIClient:
         self,
         pokemon_id: int,
         is_shiny: bool = False,
-        catch_location: Optional[str] = None
-    ) -> Optional[Pokemon]:
+        catch_location: str | None = None
+    ) -> Pokemon | None:
         """Create a Pokemon instance from API data."""
         pokemon_data = await self.get_pokemon(pokemon_id)
         if not pokemon_data:
@@ -287,7 +286,7 @@ class PokeAPIClient:
             caught_at=datetime.now()
         )
 
-    def _classify_rarity(self, pokemon_id: int, species_data: Optional[dict]) -> PokemonRarity:
+    def _classify_rarity(self, pokemon_id: int, species_data: dict | None) -> PokemonRarity:
         """Classify Pokemon rarity based on its characteristics."""
         # Check explicit rarity categories first
         if pokemon_id in MYTHICAL_IDS:
@@ -335,7 +334,7 @@ class PokeAPIClient:
 
     def _parse_evolution_chain(self, chain: dict, pokemon_id: int) -> dict:
         """Parse evolution chain to find evolution info for a specific Pokemon."""
-        result: dict[str, Optional[int | str]] = {"evolves_to": None, "min_level": None, "method": None}
+        result: dict[str, int | str | None] = {"evolves_to": None, "min_level": None, "method": None}
 
         def search_chain(node: dict) -> bool:
             species_url = node["species"]["url"]
@@ -386,7 +385,7 @@ class PokeAPIClient:
 
 
 # Synchronous wrapper for CLI usage
-def get_pokemon_sync(pokemon_id: int) -> Optional[dict]:
+def get_pokemon_sync(pokemon_id: int) -> dict | None:
     """Synchronous wrapper for getting Pokemon data."""
     import asyncio
     client = PokeAPIClient()
@@ -396,15 +395,15 @@ def get_pokemon_sync(pokemon_id: int) -> Optional[dict]:
 def create_pokemon_sync(
     pokemon_id: int,
     is_shiny: bool = False,
-    catch_location: Optional[str] = None
-) -> Optional[Pokemon]:
+    catch_location: str | None = None
+) -> Pokemon | None:
     """Synchronous wrapper for creating Pokemon instance."""
     import asyncio
     client = PokeAPIClient()
     return asyncio.run(client.create_pokemon_instance(pokemon_id, is_shiny, catch_location))
 
 
-def create_pokedex_entry_sync(pokemon_id: int) -> Optional[PokedexEntry]:
+def create_pokedex_entry_sync(pokemon_id: int) -> PokedexEntry | None:
     """Synchronous wrapper for creating Pokedex entry."""
     import asyncio
     client = PokeAPIClient()

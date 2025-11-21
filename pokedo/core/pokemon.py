@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -19,14 +19,14 @@ class PokemonRarity(str, Enum):
 class Pokemon(BaseModel):
     """A Pokemon instance owned by the player."""
 
-    id: Optional[int] = None  # Database ID
+    id: int | None = None  # Database ID
     pokedex_id: int  # National Pokedex number
     name: str
-    nickname: Optional[str] = None
+    nickname: str | None = None
 
     # Types
     type1: str
-    type2: Optional[str] = None
+    type2: str | None = None
 
     # Stats
     level: int = 1
@@ -36,7 +36,7 @@ class Pokemon(BaseModel):
     # Catch info
     caught_at: datetime = Field(default_factory=datetime.now)
     is_shiny: bool = False
-    catch_location: Optional[str] = None  # Task category that triggered catch
+    catch_location: str | None = None  # Task category that triggered catch
 
     # Status
     is_active: bool = False  # In active team
@@ -44,13 +44,13 @@ class Pokemon(BaseModel):
 
     # Evolution
     can_evolve: bool = False
-    evolution_id: Optional[int] = None  # Pokedex ID of evolution
-    evolution_level: Optional[int] = None
-    evolution_method: Optional[str] = None  # "level", "item", "trade", "friendship"
+    evolution_id: int | None = None  # Pokedex ID of evolution
+    evolution_level: int | None = None
+    evolution_method: str | None = None  # "level", "item", "trade", "friendship"
 
     # Sprites (cached paths)
-    sprite_url: Optional[str] = None
-    sprite_path: Optional[str] = None
+    sprite_url: str | None = None
+    sprite_path: str | None = None
 
     @property
     def display_name(self) -> str:
@@ -109,25 +109,25 @@ class PokedexEntry(BaseModel):
     pokedex_id: int
     name: str
     type1: str
-    type2: Optional[str] = None
+    type2: str | None = None
 
     # Catch tracking
     is_seen: bool = False
     is_caught: bool = False
     times_caught: int = 0
-    first_caught_at: Optional[datetime] = None
+    first_caught_at: datetime | None = None
 
     # Shiny tracking
     shiny_caught: bool = False
 
     # Sprite URL for display
-    sprite_url: Optional[str] = None
+    sprite_url: str | None = None
 
     # Rarity classification
     rarity: PokemonRarity = PokemonRarity.COMMON
 
     # Evolution info
-    evolves_from: Optional[int] = None
+    evolves_from: int | None = None
     evolves_to: list[int] = Field(default_factory=list)
 
 
@@ -154,7 +154,7 @@ class PokemonTeam(BaseModel):
         self.pokemon.append(pokemon)
         return True
 
-    def remove(self, pokemon_id: int) -> Optional[Pokemon]:
+    def remove(self, pokemon_id: int) -> Pokemon | None:
         """Remove Pokemon from team by ID."""
         for i, p in enumerate(self.pokemon):
             if p.id == pokemon_id:

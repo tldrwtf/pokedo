@@ -8,12 +8,19 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from pokedo.core.task import Task, TaskCategory, TaskDifficulty, TaskPriority, RecurrenceType
-from pokedo.core.pokemon import Pokemon, PokedexEntry, PokemonTeam, PokemonRarity
-from pokedo.core.trainer import Trainer, Streak, TrainerBadge
+from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity, PokemonTeam
+from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
+from pokedo.core.trainer import Streak, Trainer, TrainerBadge
 from pokedo.core.wellbeing import (
-    MoodEntry, ExerciseEntry, SleepEntry, HydrationEntry,
-    MeditationEntry, JournalEntry, DailyWellbeing, MoodLevel, ExerciseType
+    DailyWellbeing,
+    ExerciseEntry,
+    ExerciseType,
+    HydrationEntry,
+    JournalEntry,
+    MeditationEntry,
+    MoodEntry,
+    MoodLevel,
+    SleepEntry,
 )
 from pokedo.data.database import Database
 from pokedo.utils import config as config_module

@@ -1,11 +1,17 @@
 """Tests for helper utilities."""
 
-import pytest
 from datetime import date, datetime, timedelta
 
 from pokedo.utils.helpers import (
-    get_today, get_now, weighted_random_choice, calculate_level,
-    xp_for_level, xp_to_next_level, format_date, format_datetime, days_between
+    calculate_level,
+    days_between,
+    format_date,
+    format_datetime,
+    get_now,
+    get_today,
+    weighted_random_choice,
+    xp_for_level,
+    xp_to_next_level,
 )
 
 

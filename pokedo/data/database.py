@@ -1,26 +1,31 @@
 """SQLite database operations for PokeDo."""
 
-import sqlite3
 import json
-from datetime import datetime, date
-from pathlib import Path
-from typing import Optional
+import sqlite3
 from contextlib import contextmanager
+from datetime import date, datetime
+from pathlib import Path
 
-from pokedo.utils.config import config
-from pokedo.core.task import Task, TaskCategory, TaskDifficulty, TaskPriority, RecurrenceType
-from pokedo.core.pokemon import Pokemon, PokedexEntry, PokemonRarity
-from pokedo.core.trainer import Trainer, Streak, TrainerBadge
+from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity
+from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
+from pokedo.core.trainer import Streak, Trainer
 from pokedo.core.wellbeing import (
-    MoodEntry, ExerciseEntry, SleepEntry, HydrationEntry,
-    MeditationEntry, JournalEntry, MoodLevel, ExerciseType
+    ExerciseEntry,
+    ExerciseType,
+    HydrationEntry,
+    JournalEntry,
+    MeditationEntry,
+    MoodEntry,
+    MoodLevel,
+    SleepEntry,
 )
+from pokedo.utils.config import config
 
 
 class Database:
     """SQLite database manager."""
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db_path = db_path or config.db_path
         config.ensure_dirs()
         self._init_db()
@@ -221,7 +226,7 @@ class Database:
             task.id = cursor.lastrowid
             return task
 
-    def get_task(self, task_id: int) -> Optional[Task]:
+    def get_task(self, task_id: int) -> Task | None:
         """Get a task by ID."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -336,7 +341,7 @@ class Database:
                 pokemon.id = cursor.lastrowid
             return pokemon
 
-    def get_pokemon(self, pokemon_id: int) -> Optional[Pokemon]:
+    def get_pokemon(self, pokemon_id: int) -> Pokemon | None:
         """Get a Pokemon by ID."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -409,7 +414,7 @@ class Database:
                 entry.evolves_from, json.dumps(entry.evolves_to)
             ))
 
-    def get_pokedex_entry(self, pokedex_id: int) -> Optional[PokedexEntry]:
+    def get_pokedex_entry(self, pokedex_id: int) -> PokedexEntry | None:
         """Get a Pokedex entry."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -616,7 +621,7 @@ class Database:
             entry.id = cursor.lastrowid
             return entry
 
-    def get_mood_for_date(self, target_date: date) -> Optional[MoodEntry]:
+    def get_mood_for_date(self, target_date: date) -> MoodEntry | None:
         """Get mood entry for a date."""
         with self._get_connection() as conn:
             cursor = conn.cursor()

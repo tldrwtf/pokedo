@@ -57,7 +57,7 @@ src = ["pokedo", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "B", "UP", "RUF"]
-ignore = ["E203", "E501"]
+ignore = ["E203", "E501", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["pokedo"]

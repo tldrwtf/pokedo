@@ -1,9 +1,8 @@
 """Tests for Task model and related logic."""
 
-import pytest
 from datetime import date, datetime, timedelta
 
-from pokedo.core.task import Task, TaskCategory, TaskDifficulty, TaskPriority, RecurrenceType
+from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
 
 
 class TestTaskCategory:

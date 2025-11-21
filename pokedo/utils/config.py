@@ -1,6 +1,7 @@
 """Configuration management for PokeDo."""
 
 from pathlib import Path
+
 from pydantic import BaseModel
 
 

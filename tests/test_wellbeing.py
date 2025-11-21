@@ -1,12 +1,17 @@
 """Tests for Wellbeing models."""
 
-import pytest
 from datetime import date
 
 from pokedo.core.wellbeing import (
-    MoodEntry, ExerciseEntry, SleepEntry, HydrationEntry,
-    MeditationEntry, JournalEntry, DailyWellbeing,
-    MoodLevel, ExerciseType
+    DailyWellbeing,
+    ExerciseEntry,
+    ExerciseType,
+    HydrationEntry,
+    JournalEntry,
+    MeditationEntry,
+    MoodEntry,
+    MoodLevel,
+    SleepEntry,
 )
 
 

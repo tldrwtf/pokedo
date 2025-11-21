@@ -1,9 +1,8 @@
 """Tests for Trainer model and related logic."""
 
-import pytest
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
-from pokedo.core.trainer import Trainer, Streak, TrainerBadge, AVAILABLE_BADGES
+from pokedo.core.trainer import AVAILABLE_BADGES, Streak, Trainer
 
 
 class TestStreak:

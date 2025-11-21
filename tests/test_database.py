@@ -3,7 +3,6 @@
 from datetime import date
 
 from pokedo.core.pokemon import PokedexEntry, PokemonRarity
-from pokedo.core.trainer import Trainer
 
 
 def test_save_and_load_pokedex_entry(isolated_db):

@@ -1,14 +1,13 @@
 """Main CLI application for PokeDo."""
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich import box
 
 from pokedo import __version__
-from pokedo.cli.commands import tasks, pokemon, wellbeing, stats
+from pokedo.cli.commands import pokemon, stats, tasks, wellbeing
 from pokedo.data.database import db
-from pokedo.cli.ui.displays import display_trainer_card
 
 # Create main app
 app = typer.Typer(
@@ -120,9 +119,10 @@ def initialize(
     gen: int = typer.Option(0, "--gen", "-g", help="Initialize specific generation (1-9, 0=all)")
 ) -> None:
     """Initialize PokeDo and create trainer profile."""
-    from pokedo.utils.config import config
     import asyncio
+
     from pokedo.data.pokeapi import pokeapi
+    from pokedo.utils.config import config
 
     console.print("[bold]Welcome to PokeDo![/bold]")
     console.print("Initializing your Pokemon journey...\n")
@@ -132,7 +132,7 @@ def initialize(
     console.print("[green]+ Created data directories[/green]")
 
     # Initialize database
-    trainer = db.get_or_create_trainer(name)
+    db.get_or_create_trainer(name)
     console.print(f"[green]+ Created trainer profile: {name}[/green]")
 
     # Determine range to initialize

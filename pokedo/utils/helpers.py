@@ -1,7 +1,7 @@
 """Helper utilities for PokeDo."""
 
 import random
-from datetime import datetime, date
+from datetime import date, datetime
 
 
 def get_today() -> date:

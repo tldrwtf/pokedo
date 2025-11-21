@@ -1,8 +1,8 @@
 """Task model and related logic."""
 
-from datetime import datetime, date
+from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -43,17 +43,17 @@ class RecurrenceType(str, Enum):
 class Task(BaseModel):
     """A task/todo item."""
 
-    id: Optional[int] = None
+    id: int | None = None
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     category: TaskCategory = TaskCategory.PERSONAL
     difficulty: TaskDifficulty = TaskDifficulty.MEDIUM
     priority: TaskPriority = TaskPriority.MEDIUM
 
     # Dates
     created_at: datetime = Field(default_factory=datetime.now)
-    due_date: Optional[date] = None
-    completed_at: Optional[datetime] = None
+    due_date: date | None = None
+    completed_at: datetime | None = None
 
     # Status
     is_completed: bool = False
@@ -61,7 +61,7 @@ class Task(BaseModel):
 
     # Recurrence
     recurrence: RecurrenceType = RecurrenceType.NONE
-    parent_task_id: Optional[int] = None  # For subtasks
+    parent_task_id: int | None = None  # For subtasks
 
     # Tags for flexible categorization
     tags: list[str] = Field(default_factory=list)
