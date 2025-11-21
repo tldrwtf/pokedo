@@ -1,12 +1,12 @@
 """Wellbeing tracking models."""
 
-from datetime import datetime, date
+import datetime as dt
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class MoodLevel(int, Enum):
+class MoodLevel(Enum):
     """Mood levels from 1-5."""
     VERY_LOW = 1
     LOW = 2
@@ -34,8 +34,8 @@ class MoodEntry(BaseModel):
     """A mood check-in entry."""
 
     id: Optional[int] = None
-    date: date = Field(default_factory=date.today)
-    timestamp: datetime = Field(default_factory=datetime.now)
+    date: dt.date = Field(default_factory=dt.date.today)
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     mood: MoodLevel
     note: Optional[str] = None
     energy_level: Optional[int] = None  # 1-5
@@ -56,8 +56,8 @@ class ExerciseEntry(BaseModel):
     """An exercise log entry."""
 
     id: Optional[int] = None
-    date: date = Field(default_factory=date.today)
-    timestamp: datetime = Field(default_factory=datetime.now)
+    date: dt.date = Field(default_factory=dt.date.today)
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     exercise_type: ExerciseType
     duration_minutes: int
     intensity: int = 3  # 1-5
@@ -92,7 +92,7 @@ class SleepEntry(BaseModel):
     """A sleep log entry."""
 
     id: Optional[int] = None
-    date: date = Field(default_factory=date.today)
+    date: dt.date = Field(default_factory=dt.date.today)
     hours: float
     quality: int = 3  # 1-5
     note: Optional[str] = None
@@ -113,7 +113,7 @@ class HydrationEntry(BaseModel):
     """A hydration log entry."""
 
     id: Optional[int] = None
-    date: date = Field(default_factory=date.today)
+    date: dt.date = Field(default_factory=dt.date.today)
     glasses: int  # 8oz glasses
     note: Optional[str] = None
 
@@ -135,8 +135,8 @@ class MeditationEntry(BaseModel):
     """A meditation log entry."""
 
     id: Optional[int] = None
-    date: date = Field(default_factory=date.today)
-    timestamp: datetime = Field(default_factory=datetime.now)
+    date: dt.date = Field(default_factory=dt.date.today)
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     minutes: int
     note: Optional[str] = None
 
@@ -153,8 +153,8 @@ class JournalEntry(BaseModel):
     """A gratitude journal entry."""
 
     id: Optional[int] = None
-    date: date = Field(default_factory=date.today)
-    timestamp: datetime = Field(default_factory=datetime.now)
+    date: dt.date = Field(default_factory=dt.date.today)
+    timestamp: dt.datetime = Field(default_factory=dt.datetime.now)
     content: str
     gratitude_items: list[str] = Field(default_factory=list)
 
@@ -171,7 +171,7 @@ class JournalEntry(BaseModel):
 class DailyWellbeing(BaseModel):
     """Aggregated wellbeing data for a day."""
 
-    date: date = Field(default_factory=date.today)
+    date: dt.date = Field(default_factory=dt.date.today)
     mood: Optional[MoodEntry] = None
     exercises: list[ExerciseEntry] = Field(default_factory=list)
     sleep: Optional[SleepEntry] = None
