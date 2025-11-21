@@ -63,7 +63,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/pokedo.git
+git clone https://github.com/tlfrwtf/pokedo.git
 cd pokedo
 
 # Create virtual environment (recommended)
