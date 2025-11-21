@@ -2,6 +2,21 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
+**Version:** 0.1.0 | **License:** MIT | **Python:** 3.10+
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [How It Works](#how-it-works)
+- [Data Storage](#data-storage)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [Credits](#credits)
+
 ## Features
 
 ### Task Management
@@ -38,9 +53,41 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 
 ## Installation
 
+### Requirements
+
+- Python 3.10 or higher
+- pip (Python package manager)
+- Internet connection (for initial Pokemon data download)
+
+### Install from Source
+
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/pokedo.git
 cd pokedo
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install PokeDo
 pip install -e .
+```
+
+## Quick Start
+
+```bash
+# 1. Initialize (downloads Pokemon data)
+pokedo init --name "YourName" --quick  # Quick start with Gen 1 only
+
+# 2. Add your first task
+pokedo task add "Complete a task" --difficulty easy
+
+# 3. Complete the task and catch a Pokemon!
+pokedo task complete 1
+
+# 4. View your dashboard
+pokedo
 ```
 
 ## Usage
@@ -207,9 +254,111 @@ pip install -e ".[dev]"
 
 # Run tests
 pytest
+
+# Run tests with coverage
+pytest --cov=pokedo
+
+# Run specific test file
+pytest tests/test_tasks.py
 ```
+
+For more development information, see:
+- [Architecture Documentation](docs/ARCHITECTURE.md) - System design and code structure
+- [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute to PokeDo
+- [API Reference](docs/API.md) - Internal API documentation
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**"Command not found: pokedo"**
+- Ensure you installed with `pip install -e .`
+- Check that your virtual environment is activated
+- Try running with `python -m pokedo` instead
+
+**"Database error" on first run**
+- Run `pokedo init --name "YourName"` to initialize the database
+- Check write permissions in your home directory
+
+**Slow initialization**
+- Full initialization downloads data for 1025 Pokemon
+- Use `--quick` flag for Gen 1 only (151 Pokemon)
+- Use `--gen N` to initialize a specific generation
+
+**Pokemon sprites not displaying**
+- Sprites require terminal with image support (iTerm2, Kitty, etc.)
+- Text fallback is used in unsupported terminals
+- Check `~/.pokedo/cache/sprites/` for cached images
+
+**API rate limiting**
+- PokeAPI is free and has generous limits
+- Data is cached locally after first fetch
+- Clear cache: delete `~/.pokedo/cache/` folder
+
+### Reset Data
+
+```bash
+# Remove all PokeDo data (start fresh)
+rm -rf ~/.pokedo
+
+# Reinitialize
+pokedo init --name "YourName"
+```
+
+---
+
+## FAQ
+
+**Q: Can I play offline?**
+A: Yes, after initial setup. All Pokemon data is cached locally.
+
+**Q: How do I backup my progress?**
+A: Copy the `~/.pokedo/` directory. The `pokedo.db` file contains all your data.
+
+**Q: What happens if I miss a day?**
+A: Your daily streak resets to 0, but your best streak is preserved.
+
+**Q: Can I catch legendary Pokemon?**
+A: Yes! Epic and hard tasks have small chances to encounter legendaries. Mythical Pokemon require special tickets earned from long streaks.
+
+**Q: How does shiny hunting work?**
+A: Base shiny rate is 1%. Each day of your streak adds 0.5% (up to 10% max).
+
+**Q: Can I have multiple profiles?**
+A: Currently single-profile only. You can backup/restore `~/.pokedo/` to switch profiles.
+
+**Q: Does wellbeing tracking affect gameplay?**
+A: Yes! Good sleep improves catch rates, hydration goals boost Water-type encounters, and meditation increases Psychic/Fairy encounters.
+
+**Q: How do I evolve Pokemon?**
+A: Level up your Pokemon by completing tasks. When evolution requirements are met, use `pokedo pokemon evolve <id>`.
+
+---
+
+## Project Structure
+
+```
+pokedo/
+├── cli/           # Command-line interface
+├── core/          # Business logic and models
+├── data/          # Database and API clients
+└── utils/         # Configuration and helpers
+```
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed documentation.
+
+---
 
 ## Credits
 
 - Pokemon data from [PokeAPI](https://pokeapi.co/)
 - Built with [Typer](https://typer.tiangolo.com/) and [Rich](https://rich.readthedocs.io/)
+- Inspired by the Pokemon franchise by Nintendo/Game Freak
+
+---
+
+## License
+
+MIT License - see LICENSE file for details.
