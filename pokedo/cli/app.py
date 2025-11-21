@@ -104,7 +104,7 @@ def team_shortcut() -> None:
 @app.command("pokedex")
 def pokedex_shortcut() -> None:
     """Show Pokedex."""
-    pokemon.render_pokedex()
+    pokemon.render_pokedex(auto_focus=True)
 
 
 @app.command("version")

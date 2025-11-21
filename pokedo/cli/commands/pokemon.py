@@ -62,7 +62,8 @@ def pokemon_info(
 def render_pokedex(
     caught_only: bool = False,
     page: int = 1,
-    gen: int = 0
+    gen: int = 0,
+    auto_focus: bool = False
 ) -> None:
     """Render the Pokedex view for both CLI commands and shortcuts."""
     from pokedo.utils.config import config
@@ -83,6 +84,13 @@ def render_pokedex(
 
     # Pagination
     per_page = 20
+    if auto_focus and entries and page == 1:
+        focus_index = next(
+            (i for i, entry in enumerate(entries) if entry.is_caught),
+            next((i for i, entry in enumerate(entries) if entry.is_seen), 0)
+        )
+        page = (focus_index // per_page) + 1
+
     page = max(1, page)
     start = (page - 1) * per_page
     end = start + per_page
