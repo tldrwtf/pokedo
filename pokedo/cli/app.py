@@ -1,20 +1,19 @@
 """Main CLI application for PokeDo."""
 
 import typer
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich import box
 
 from pokedo import __version__
-from pokedo.cli.commands import tasks, pokemon, wellbeing, stats
+from pokedo.cli.commands import pokemon, stats, tasks, wellbeing
 from pokedo.data.database import db
-from pokedo.cli.ui.displays import display_trainer_card
 
 # Create main app
 app = typer.Typer(
     name="pokedo",
     help="PokeDo - A Pokemon-themed task manager and wellbeing tracker",
-    no_args_is_help=False
+    no_args_is_help=False,
 )
 
 # Register sub-commands
@@ -29,8 +28,7 @@ console = Console()
 # Direct commands (shortcuts)
 @app.command("mood")
 def mood_shortcut(
-    level: int = typer.Argument(..., min=1, max=5),
-    note: str = typer.Option(None, "--note", "-n")
+    level: int = typer.Argument(..., min=1, max=5), note: str = typer.Option(None, "--note", "-n")
 ) -> None:
     """Quick mood log (1-5)."""
     wellbeing.log_mood(level, note, None)
@@ -40,7 +38,7 @@ def mood_shortcut(
 def exercise_shortcut(
     exercise_type: wellbeing.ExerciseType = typer.Argument(...),
     duration: int = typer.Option(..., "--duration", "-d"),
-    intensity: int = typer.Option(3, "--intensity", "-i", min=1, max=5)
+    intensity: int = typer.Option(3, "--intensity", "-i", min=1, max=5),
 ) -> None:
     """Quick exercise log."""
     wellbeing.log_exercise(exercise_type, duration, intensity, None)
@@ -49,24 +47,20 @@ def exercise_shortcut(
 @app.command("sleep")
 def sleep_shortcut(
     hours: float = typer.Argument(...),
-    quality: int = typer.Option(3, "--quality", "-q", min=1, max=5)
+    quality: int = typer.Option(3, "--quality", "-q", min=1, max=5),
 ) -> None:
     """Quick sleep log."""
     wellbeing.log_sleep(hours, quality, None)
 
 
 @app.command("water")
-def water_shortcut(
-    glasses: int = typer.Option(1, "--glasses", "-g")
-) -> None:
+def water_shortcut(glasses: int = typer.Option(1, "--glasses", "-g")) -> None:
     """Quick water log."""
     wellbeing.log_hydration(glasses, None)
 
 
 @app.command("meditate")
-def meditate_shortcut(
-    minutes: int = typer.Argument(...)
-) -> None:
+def meditate_shortcut(minutes: int = typer.Argument(...)) -> None:
     """Quick meditation log."""
     wellbeing.log_meditation(minutes, None)
 
@@ -117,12 +111,13 @@ def show_version() -> None:
 def initialize(
     name: str = typer.Option("Trainer", "--name", "-n", help="Your trainer name"),
     quick: bool = typer.Option(False, "--quick", "-q", help="Quick init (Gen 1 only)"),
-    gen: int = typer.Option(0, "--gen", "-g", help="Initialize specific generation (1-9, 0=all)")
+    gen: int = typer.Option(0, "--gen", "-g", help="Initialize specific generation (1-9, 0=all)"),
 ) -> None:
     """Initialize PokeDo and create trainer profile."""
-    from pokedo.utils.config import config
     import asyncio
+
     from pokedo.data.pokeapi import pokeapi
+    from pokedo.utils.config import config
 
     console.print("[bold]Welcome to PokeDo![/bold]")
     console.print("Initializing your Pokemon journey...\n")
@@ -132,7 +127,7 @@ def initialize(
     console.print("[green]+ Created data directories[/green]")
 
     # Initialize database
-    trainer = db.get_or_create_trainer(name)
+    db.get_or_create_trainer(name)
     console.print(f"[green]+ Created trainer profile: {name}[/green]")
 
     # Determine range to initialize
@@ -191,10 +186,7 @@ def show_dashboard() -> None:
 
     # Header
     console.print()
-    console.print(Panel(
-        f"[bold]PokeDo[/bold] - {trainer.name}'s Journey",
-        box=box.DOUBLE
-    ))
+    console.print(Panel(f"[bold]PokeDo[/bold] - {trainer.name}'s Journey", box=box.DOUBLE))
 
     # Quick stats
     today = date.today()
@@ -212,10 +204,9 @@ Tasks Today: {len([t for t in today_tasks if t.is_completed])}/{len(today_tasks)
 
     # Team preview
     if team:
-        team_str = " | ".join([
-            f"{p.display_name} Lv.{p.level}" + (" *" if p.is_shiny else "")
-            for p in team[:3]
-        ])
+        team_str = " | ".join(
+            [f"{p.display_name} Lv.{p.level}" + (" *" if p.is_shiny else "") for p in team[:3]]
+        )
         console.print(f"\n[dim]Team:[/dim] {team_str}")
 
     # Today's tasks
@@ -230,7 +221,9 @@ Tasks Today: {len([t for t in today_tasks if t.is_completed])}/{len(today_tasks)
         console.print("\n[green]All tasks completed![/green]")
 
     # Commands hint
-    console.print("\n[dim]Commands: task add/complete | pokemon team/pokedex | daily | --help[/dim]")
+    console.print(
+        "\n[dim]Commands: task add/complete | pokemon team/pokedex | daily | --help[/dim]"
+    )
 
 
 if __name__ == "__main__":

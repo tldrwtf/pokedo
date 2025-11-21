@@ -2,18 +2,21 @@
 
 import random
 from datetime import date
-from typing import Optional
 
-from pokedo.utils.config import config
-from pokedo.utils.helpers import weighted_random_choice
-from pokedo.core.task import Task
 from pokedo.core.pokemon import Pokemon, PokemonRarity
+from pokedo.core.task import Task
 from pokedo.core.trainer import Trainer
 from pokedo.data.pokeapi import (
-    create_pokemon_sync, create_pokedex_entry_sync,
-    LEGENDARY_IDS, MYTHICAL_IDS, PSEUDO_LEGENDARY_IDS,
-    STARTER_FINAL_IDS, ULTRA_BEAST_IDS, PARADOX_IDS
+    LEGENDARY_IDS,
+    MYTHICAL_IDS,
+    PARADOX_IDS,
+    PSEUDO_LEGENDARY_IDS,
+    STARTER_FINAL_IDS,
+    ULTRA_BEAST_IDS,
+    create_pokemon_sync,
 )
+from pokedo.utils.config import config
+from pokedo.utils.helpers import weighted_random_choice
 
 
 def _generate_pokemon_pools() -> dict[PokemonRarity, list[int]]:
@@ -24,7 +27,14 @@ def _generate_pokemon_pools() -> dict[PokemonRarity, list[int]]:
     all_ids = set(range(1, max_id + 1))
 
     # Remove special categories
-    special = LEGENDARY_IDS | MYTHICAL_IDS | PSEUDO_LEGENDARY_IDS | STARTER_FINAL_IDS | ULTRA_BEAST_IDS | PARADOX_IDS
+    special = (
+        LEGENDARY_IDS
+        | MYTHICAL_IDS
+        | PSEUDO_LEGENDARY_IDS
+        | STARTER_FINAL_IDS
+        | ULTRA_BEAST_IDS
+        | PARADOX_IDS
+    )
 
     # Regular Pokemon (not in special categories)
     regular = all_ids - special
@@ -49,7 +59,7 @@ def _generate_pokemon_pools() -> dict[PokemonRarity, list[int]]:
 
         # Heuristic: Pokemon ending in certain patterns tend to be evolved/rarer
         # This is approximate - real rarity would come from API data
-        gen_start, gen_end = config.generation_ranges[gen]
+        gen_start, _gen_end = config.generation_ranges[gen]
         position_in_gen = pid - gen_start
 
         # Common Pokemon tend to be early route Pokemon
@@ -82,15 +92,15 @@ class EncounterResult:
         self,
         encountered: bool,
         caught: bool,
-        pokemon: Optional[Pokemon] = None,
+        pokemon: Pokemon | None = None,
         is_shiny: bool = False,
         xp_earned: int = 0,
         level_up: bool = False,
         new_level: int = 0,
         streak_continued: bool = True,
         streak_count: int = 0,
-        badges_earned: Optional[list] = None,
-        items_earned: Optional[dict] = None
+        badges_earned: list | None = None,
+        items_earned: dict | None = None,
     ):
         self.encountered = encountered
         self.caught = caught
@@ -108,7 +118,7 @@ class EncounterResult:
 class RewardEngine:
     """Engine for calculating rewards and triggering encounters."""
 
-    def __init__(self, generation_filter: Optional[list[int]] = None):
+    def __init__(self, generation_filter: list[int] | None = None):
         """Initialize reward engine.
 
         Args:
@@ -146,10 +156,7 @@ class RewardEngine:
         return filtered
 
     def process_task_completion(
-        self,
-        task: Task,
-        trainer: Trainer,
-        type_affinity_bonus: Optional[list[str]] = None
+        self, task: Task, trainer: Trainer, type_affinity_bonus: list[str] | None = None
     ) -> EncounterResult:
         """Process task completion and generate rewards."""
         result = EncounterResult(encountered=False, caught=False)
@@ -183,17 +190,11 @@ class RewardEngine:
             result.is_shiny = self._check_shiny(streak_count)
 
             # Select Pokemon
-            pokemon_id = self._select_pokemon(
-                rarity,
-                task.get_type_affinity(),
-                type_affinity_bonus
-            )
+            pokemon_id = self._select_pokemon(rarity, task.get_type_affinity(), type_affinity_bonus)
 
             # Create Pokemon instance
             pokemon = create_pokemon_sync(
-                pokemon_id,
-                is_shiny=result.is_shiny,
-                catch_location=task.category.value
+                pokemon_id, is_shiny=result.is_shiny, catch_location=task.category.value
             )
 
             if pokemon:
@@ -217,12 +218,7 @@ class RewardEngine:
         base_chance = 0.7  # 70% base encounter rate
 
         # Difficulty bonus
-        difficulty_bonus = {
-            "easy": 0.0,
-            "medium": 0.05,
-            "hard": 0.10,
-            "epic": 0.15
-        }
+        difficulty_bonus = {"easy": 0.0, "medium": 0.05, "hard": 0.10, "epic": 0.15}
         base_chance += difficulty_bonus.get(task.difficulty.value, 0)
 
         # Streak bonus (up to 10% bonus)
@@ -262,10 +258,7 @@ class RewardEngine:
         return PokemonRarity(selected)
 
     def _select_pokemon(
-        self,
-        rarity: PokemonRarity,
-        type_affinity: list[str],
-        bonus_types: Optional[list[str]] = None
+        self, rarity: PokemonRarity, type_affinity: list[str], bonus_types: list[str] | None = None
     ) -> int:
         """Select a Pokemon ID based on rarity and type affinity."""
         pools = self._get_filtered_pools()
@@ -292,7 +285,7 @@ class RewardEngine:
             PokemonRarity.RARE: 0.50,
             PokemonRarity.EPIC: 0.30,
             PokemonRarity.LEGENDARY: 0.15,
-            PokemonRarity.MYTHICAL: 0.05
+            PokemonRarity.MYTHICAL: 0.05,
         }
 
         base = base_rates.get(rarity, 0.5)
@@ -337,11 +330,8 @@ class RewardEngine:
         return rewards
 
     def trigger_guaranteed_encounter(
-        self,
-        rarity: PokemonRarity,
-        trainer: Trainer,
-        is_shiny: bool = False
-    ) -> Optional[Pokemon]:
+        self, rarity: PokemonRarity, trainer: Trainer, is_shiny: bool = False
+    ) -> Pokemon | None:
         """Trigger a guaranteed Pokemon encounter of specific rarity."""
         pools = self._get_filtered_pools()
         pool = pools.get(rarity, pools[PokemonRarity.COMMON])

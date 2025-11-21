@@ -1,9 +1,8 @@
 """Tests for Pokemon model and related logic."""
 
-import pytest
 from datetime import datetime
 
-from pokedo.core.pokemon import Pokemon, PokedexEntry, PokemonTeam, PokemonRarity
+from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity
 
 
 class TestPokemonRarity:

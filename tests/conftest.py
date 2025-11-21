@@ -1,17 +1,29 @@
 """Shared fixtures for PokeDo tests."""
 
-import pytest
+import importlib
+import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
-import tempfile
 
-from pokedo.core.task import Task, TaskCategory, TaskDifficulty, TaskPriority, RecurrenceType
-from pokedo.core.pokemon import Pokemon, PokedexEntry, PokemonTeam, PokemonRarity
-from pokedo.core.trainer import Trainer, Streak, TrainerBadge
+import pytest
+from typer.testing import CliRunner
+
+from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity, PokemonTeam
+from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
+from pokedo.core.trainer import Streak, Trainer, TrainerBadge
 from pokedo.core.wellbeing import (
-    MoodEntry, ExerciseEntry, SleepEntry, HydrationEntry,
-    MeditationEntry, JournalEntry, DailyWellbeing, MoodLevel, ExerciseType
+    DailyWellbeing,
+    ExerciseEntry,
+    ExerciseType,
+    HydrationEntry,
+    JournalEntry,
+    MeditationEntry,
+    MoodEntry,
+    MoodLevel,
+    SleepEntry,
 )
+from pokedo.data.database import Database
+from pokedo.utils import config as config_module
 
 
 # Task fixtures
@@ -352,7 +364,9 @@ def gratitude_journal():
 
 
 @pytest.fixture
-def complete_daily_wellbeing(good_mood, cardio_exercise, good_sleep, full_hydration, long_meditation, gratitude_journal):
+def complete_daily_wellbeing(
+    good_mood, cardio_exercise, good_sleep, full_hydration, long_meditation, gratitude_journal
+):
     """Create a complete daily wellbeing record."""
     return DailyWellbeing(
         mood=good_mood,
@@ -379,3 +393,41 @@ def temp_data_dir():
     """Create a temporary data directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+
+
+@pytest.fixture
+def cli_runner() -> CliRunner:
+    """Provide a Typer CLI runner for command tests."""
+    return CliRunner()
+
+
+@pytest.fixture
+def isolated_db(tmp_path, monkeypatch) -> Database:
+    """Provide a database instance isolated to a temporary directory."""
+    data_dir = tmp_path / "data"
+    cache_dir = data_dir / "cache"
+    sprites_dir = cache_dir / "sprites"
+    db_path = data_dir / "pokedo.db"
+
+    for attr, value in (
+        ("data_dir", data_dir),
+        ("cache_dir", cache_dir),
+        ("sprites_dir", sprites_dir),
+        ("db_path", db_path),
+    ):
+        monkeypatch.setattr(config_module.config, attr, value)
+
+    test_db = Database(db_path=db_path)
+
+    modules_to_patch = [
+        "pokedo.data.database",
+        "pokedo.cli.commands.pokemon",
+        "pokedo.cli.commands.tasks",
+        "pokedo.cli.commands.stats",
+        "pokedo.cli.commands.wellbeing",
+    ]
+    for module_name in modules_to_patch:
+        module = importlib.import_module(module_name)
+        monkeypatch.setattr(module, "db", test_db)
+
+    return test_db

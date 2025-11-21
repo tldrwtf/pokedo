@@ -1,6 +1,7 @@
 """Configuration management for PokeDo."""
 
 from pathlib import Path
+
 from pydantic import BaseModel
 
 
@@ -19,15 +20,15 @@ class Config(BaseModel):
 
     # Generation ranges for filtering
     generation_ranges: dict = {
-        1: (1, 151),      # Kanto
-        2: (152, 251),    # Johto
-        3: (252, 386),    # Hoenn
-        4: (387, 493),    # Sinnoh
-        5: (494, 649),    # Unova
-        6: (650, 721),    # Kalos
-        7: (722, 809),    # Alola
-        8: (810, 905),    # Galar
-        9: (906, 1025),   # Paldea
+        1: (1, 151),  # Kanto
+        2: (152, 251),  # Johto
+        3: (252, 386),  # Hoenn
+        4: (387, 493),  # Sinnoh
+        5: (494, 649),  # Unova
+        6: (650, 721),  # Kalos
+        7: (722, 809),  # Alola
+        8: (810, 905),  # Galar
+        9: (906, 1025),  # Paldea
     }
 
     # Game settings
@@ -48,7 +49,7 @@ class Config(BaseModel):
         7: "evolution_stone",
         14: "rare_encounter",
         30: "legendary_encounter",
-        100: "mythical_encounter"
+        100: "mythical_encounter",
     }
 
     def ensure_dirs(self) -> None:

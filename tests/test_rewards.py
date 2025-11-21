@@ -1,13 +1,11 @@
 """Tests for Reward and encounter system."""
 
 import pytest
-from unittest.mock import patch, MagicMock
-from datetime import date
 
-from pokedo.core.rewards import RewardEngine, EncounterResult, POKEMON_BY_RARITY
-from pokedo.core.task import Task, TaskDifficulty, TaskCategory
-from pokedo.core.trainer import Trainer
 from pokedo.core.pokemon import PokemonRarity
+from pokedo.core.rewards import POKEMON_BY_RARITY, EncounterResult, RewardEngine
+from pokedo.core.task import Task, TaskDifficulty
+from pokedo.core.trainer import Trainer
 
 
 class TestEncounterResult:
@@ -324,7 +322,7 @@ class TestPokemonCountByRarity:
     def test_counts_are_positive(self, engine):
         """All counts are positive."""
         counts = engine.get_pokemon_count_by_rarity()
-        for rarity, count in counts.items():
+        for _rarity, count in counts.items():
             assert count >= 0
 
     def test_common_has_most(self, engine):

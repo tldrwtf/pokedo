@@ -1,12 +1,17 @@
 """Tests for Wellbeing models."""
 
-import pytest
 from datetime import date
 
 from pokedo.core.wellbeing import (
-    MoodEntry, ExerciseEntry, SleepEntry, HydrationEntry,
-    MeditationEntry, JournalEntry, DailyWellbeing,
-    MoodLevel, ExerciseType
+    DailyWellbeing,
+    ExerciseEntry,
+    ExerciseType,
+    HydrationEntry,
+    JournalEntry,
+    MeditationEntry,
+    MoodEntry,
+    MoodLevel,
+    SleepEntry,
 )
 
 
@@ -27,8 +32,19 @@ class TestExerciseType:
 
     def test_exercise_types_exist(self):
         """Verify exercise types exist."""
-        expected = ["cardio", "strength", "yoga", "swimming", "cycling",
-                    "walking", "running", "sports", "hiking", "dancing", "other"]
+        expected = [
+            "cardio",
+            "strength",
+            "yoga",
+            "swimming",
+            "cycling",
+            "walking",
+            "running",
+            "sports",
+            "hiking",
+            "dancing",
+            "other",
+        ]
         actual = [e.value for e in ExerciseType]
         assert sorted(actual) == sorted(expected)
 
