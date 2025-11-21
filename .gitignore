@@ -14,6 +14,7 @@ __pycache__/
 *.pyd
 *.class
 scratch.py
+venv/
 
 
 # Environment variables

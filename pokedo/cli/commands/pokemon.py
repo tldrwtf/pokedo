@@ -59,13 +59,12 @@ def pokemon_info(
     display_pokemon(pokemon, detailed=True)
 
 
-@app.command("pokedex")
-def show_pokedex(
-    caught_only: bool = typer.Option(False, "--caught", "-c", help="Show only caught Pokemon"),
-    page: int = typer.Option(1, "--page", "-p", help="Page number"),
-    gen: int = typer.Option(0, "--gen", "-g", help="Filter by generation (1-9)")
+def render_pokedex(
+    caught_only: bool = False,
+    page: int = 1,
+    gen: int = 0
 ) -> None:
-    """Show your Pokedex progress."""
+    """Render the Pokedex view for both CLI commands and shortcuts."""
     from pokedo.utils.config import config
 
     entries = db.get_pokedex()
@@ -84,6 +83,7 @@ def show_pokedex(
 
     # Pagination
     per_page = 20
+    page = max(1, page)
     start = (page - 1) * per_page
     end = start + per_page
     entries_page = entries[start:end]
@@ -122,11 +122,21 @@ def show_pokedex(
 
     console.print(table)
 
-    if gen > 0:
+    if gen > 0 and gen in config.generation_ranges:
         gen_total = config.generation_ranges[gen][1] - config.generation_ranges[gen][0] + 1
         console.print(f"\n[dim]Gen {gen}: Seen {total_seen}/{gen_total} | Caught {total_caught}/{gen_total}[/dim]")
     else:
         console.print(f"\n[dim]Seen: {total_seen}/{total_pokemon} | Caught: {total_caught}/{total_pokemon} ({(total_caught/total_pokemon)*100:.1f}%)[/dim]")
+
+
+@app.command("pokedex")
+def show_pokedex(
+    caught_only: bool = typer.Option(False, "--caught", "-c", help="Show only caught Pokemon"),
+    page: int = typer.Option(1, "--page", "-p", help="Page number"),
+    gen: int = typer.Option(0, "--gen", "-g", help="Filter by generation (1-9)")
+) -> None:
+    """Show your Pokedex progress."""
+    render_pokedex(caught_only=caught_only, page=page, gen=gen)
 
 
 @app.command("set-active")
