@@ -1,6 +1,5 @@
 """Tests for Reward and encounter system."""
 
-
 import pytest
 
 from pokedo.core.pokemon import PokemonRarity

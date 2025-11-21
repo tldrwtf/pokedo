@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class PokemonRarity(str, Enum):
     """Rarity tiers for Pokemon."""
+
     COMMON = "common"
     UNCOMMON = "uncommon"
     RARE = "rare"

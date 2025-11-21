@@ -1,6 +1,5 @@
 """Rich display components for the CLI."""
 
-
 from rich import box
 from rich.columns import Columns
 from rich.console import Console
@@ -20,14 +19,14 @@ DIFFICULTY_COLORS = {
     TaskDifficulty.EASY: "green",
     TaskDifficulty.MEDIUM: "yellow",
     TaskDifficulty.HARD: "red",
-    TaskDifficulty.EPIC: "magenta"
+    TaskDifficulty.EPIC: "magenta",
 }
 
 PRIORITY_COLORS = {
     TaskPriority.LOW: "dim",
     TaskPriority.MEDIUM: "white",
     TaskPriority.HIGH: "yellow",
-    TaskPriority.URGENT: "red bold"
+    TaskPriority.URGENT: "red bold",
 }
 
 TYPE_COLORS = {
@@ -48,7 +47,7 @@ TYPE_COLORS = {
     "dragon": "blue",
     "dark": "white",
     "steel": "white",
-    "fairy": "magenta"
+    "fairy": "magenta",
 }
 
 MOOD_DISPLAY = {
@@ -56,7 +55,7 @@ MOOD_DISPLAY = {
     MoodLevel.LOW: (":|", "yellow"),
     MoodLevel.NEUTRAL: (":|", "white"),
     MoodLevel.GOOD: (":)", "green"),
-    MoodLevel.GREAT: (":D", "bright_green")
+    MoodLevel.GREAT: (":D", "bright_green"),
 }
 
 
@@ -88,7 +87,7 @@ def display_task_list(tasks: list[Task], title: str = "Tasks") -> None:
             task.category.value,
             f"[{diff_color}]{task.difficulty.value}[/{diff_color}]",
             due_str,
-            status
+            status,
         )
 
     console.print(table)
@@ -176,7 +175,7 @@ def display_pokemon_list(pokemon_list: list[Pokemon], title: str = "Pokemon") ->
             f"{p.pokedex_id:03d}",
             f"[{type_color}]{p.types_display}[/{type_color}]",
             str(p.level),
-            active
+            active,
         )
 
     console.print(table)
@@ -213,8 +212,9 @@ def display_encounter(pokemon: Pokemon, caught: bool) -> None:
 
     if caught:
         console.print()
-        console.print(Panel(
-            f"""[bold green]CAUGHT![/bold green]
+        console.print(
+            Panel(
+                f"""[bold green]CAUGHT![/bold green]
 
 A wild {shiny_text}[{type_color}]{pokemon.name.upper()}[/{type_color}] appeared!
 
@@ -222,22 +222,25 @@ A wild {shiny_text}[{type_color}]{pokemon.name.upper()}[/{type_color}] appeared!
 
 Type: [{type_color}]{pokemon.types_display}[/{type_color}]
 Level: {pokemon.level}""",
-            title="Pokemon Encounter",
-            box=box.DOUBLE
-        ))
+                title="Pokemon Encounter",
+                box=box.DOUBLE,
+            )
+        )
     else:
         console.print()
-        console.print(Panel(
-            f"""[bold yellow]GOT AWAY![/bold yellow]
+        console.print(
+            Panel(
+                f"""[bold yellow]GOT AWAY![/bold yellow]
 
 A wild {shiny_text}[{type_color}]{pokemon.name.upper()}[/{type_color}] appeared!
 
 [red]It got away...[/red]
 
 Better luck next time!""",
-            title="Pokemon Encounter",
-            box=box.DOUBLE
-        ))
+                title="Pokemon Encounter",
+                box=box.DOUBLE,
+            )
+        )
 
 
 def display_task_completion_result(
@@ -246,7 +249,7 @@ def display_task_completion_result(
     level_up: bool,
     new_level: int,
     streak_count: int,
-    items_earned: dict
+    items_earned: dict,
 ) -> None:
     """Display task completion summary."""
     content = f"""[bold green]Task Completed![/bold green]
@@ -267,7 +270,9 @@ def display_task_completion_result(
     console.print(Panel(content, box=box.ROUNDED))
 
 
-def display_stats_dashboard(trainer: Trainer, today_tasks: int, wellbeing: DailyWellbeing | None = None) -> None:
+def display_stats_dashboard(
+    trainer: Trainer, today_tasks: int, wellbeing: DailyWellbeing | None = None
+) -> None:
     """Display stats dashboard."""
     # Left panel - Trainer stats
     xp_current, xp_needed = trainer.xp_progress
@@ -292,7 +297,9 @@ Best: {trainer.daily_streak.best_count} days
 Wellbeing: {trainer.wellbeing_streak.current_count} days"""
 
     if wellbeing:
-        mood_icon, mood_color = MOOD_DISPLAY.get(wellbeing.mood.mood if wellbeing.mood else MoodLevel.NEUTRAL, (":|", "white"))
+        mood_icon, mood_color = MOOD_DISPLAY.get(
+            wellbeing.mood.mood if wellbeing.mood else MoodLevel.NEUTRAL, (":|", "white")
+        )
         right += f"""
 
 [bold]Today's Wellbeing[/bold]

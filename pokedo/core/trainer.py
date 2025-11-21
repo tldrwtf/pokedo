@@ -106,6 +106,7 @@ class Trainer(BaseModel):
     def pokedex_completion(self) -> float:
         """Calculate Pokedex completion percentage."""
         from pokedo.utils.config import config
+
         if config.max_pokemon_id == 0:
             return 0.0
         return (self.pokedex_caught / config.max_pokemon_id) * 100
@@ -149,7 +150,7 @@ AVAILABLE_BADGES = [
         description="Complete 10 tasks before 9 AM",
         icon="[EB]",
         requirement_type="tasks",
-        requirement_count=10
+        requirement_count=10,
     ),
     TrainerBadge(
         id="night_owl",
@@ -157,7 +158,7 @@ AVAILABLE_BADGES = [
         description="Complete 10 tasks after 9 PM",
         icon="[NO]",
         requirement_type="tasks",
-        requirement_count=10
+        requirement_count=10,
     ),
     TrainerBadge(
         id="gym_leader",
@@ -165,7 +166,7 @@ AVAILABLE_BADGES = [
         description="Log 50 exercise sessions",
         icon="[GL]",
         requirement_type="wellbeing",
-        requirement_count=50
+        requirement_count=50,
     ),
     TrainerBadge(
         id="professor",
@@ -173,7 +174,7 @@ AVAILABLE_BADGES = [
         description="Complete 100 learning tasks",
         icon="[PR]",
         requirement_type="tasks",
-        requirement_count=100
+        requirement_count=100,
     ),
     TrainerBadge(
         id="champion",
@@ -181,7 +182,7 @@ AVAILABLE_BADGES = [
         description="Catch 50% of the Pokedex",
         icon="[CH]",
         requirement_type="pokemon",
-        requirement_count=50
+        requirement_count=50,
     ),
     TrainerBadge(
         id="collector",
@@ -189,7 +190,7 @@ AVAILABLE_BADGES = [
         description="Catch 100 Pokemon",
         icon="[CO]",
         requirement_type="pokemon",
-        requirement_count=100
+        requirement_count=100,
     ),
     TrainerBadge(
         id="dedicated",
@@ -197,7 +198,7 @@ AVAILABLE_BADGES = [
         description="Maintain a 30-day streak",
         icon="[DE]",
         requirement_type="streak",
-        requirement_count=30
+        requirement_count=30,
     ),
     TrainerBadge(
         id="centurion",
@@ -205,7 +206,7 @@ AVAILABLE_BADGES = [
         description="Maintain a 100-day streak",
         icon="[CE]",
         requirement_type="streak",
-        requirement_count=100
+        requirement_count=100,
     ),
     TrainerBadge(
         id="starter",
@@ -213,7 +214,7 @@ AVAILABLE_BADGES = [
         description="Complete your first task",
         icon="[ST]",
         requirement_type="tasks",
-        requirement_count=1
+        requirement_count=1,
     ),
     TrainerBadge(
         id="first_catch",
@@ -221,6 +222,6 @@ AVAILABLE_BADGES = [
         description="Catch your first Pokemon",
         icon="[FC]",
         requirement_type="pokemon",
-        requirement_count=1
+        requirement_count=1,
     ),
 ]

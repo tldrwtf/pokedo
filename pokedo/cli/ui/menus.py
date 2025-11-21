@@ -11,8 +11,9 @@ console = Console()
 def show_main_menu() -> str:
     """Display main interactive menu and get user choice."""
     console.print()
-    console.print(Panel(
-        """[bold]PokeDo Main Menu[/bold]
+    console.print(
+        Panel(
+            """[bold]PokeDo Main Menu[/bold]
 
 [1] Tasks
 [2] Pokemon
@@ -20,8 +21,9 @@ def show_main_menu() -> str:
 [4] Stats & Profile
 [5] Daily Overview
 [0] Exit""",
-        box=box.ROUNDED
-    ))
+            box=box.ROUNDED,
+        )
+    )
 
     choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5"], default="5")
     return choice
@@ -30,8 +32,9 @@ def show_main_menu() -> str:
 def show_task_menu() -> str:
     """Display task management menu."""
     console.print()
-    console.print(Panel(
-        """[bold]Task Management[/bold]
+    console.print(
+        Panel(
+            """[bold]Task Management[/bold]
 
 [1] List pending tasks
 [2] Add new task
@@ -40,8 +43,9 @@ def show_task_menu() -> str:
 [5] Edit task
 [6] Delete task
 [0] Back""",
-        box=box.ROUNDED
-    ))
+            box=box.ROUNDED,
+        )
+    )
 
     choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6"], default="1")
     return choice
@@ -50,8 +54,9 @@ def show_task_menu() -> str:
 def show_pokemon_menu() -> str:
     """Display Pokemon management menu."""
     console.print()
-    console.print(Panel(
-        """[bold]Pokemon[/bold]
+    console.print(
+        Panel(
+            """[bold]Pokemon[/bold]
 
 [1] View active team
 [2] View Pokemon box
@@ -62,18 +67,22 @@ def show_pokemon_menu() -> str:
 [7] Evolve Pokemon
 [8] Release Pokemon
 [0] Back""",
-        box=box.ROUNDED
-    ))
+            box=box.ROUNDED,
+        )
+    )
 
-    choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8"], default="1")
+    choice = Prompt.ask(
+        "Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8"], default="1"
+    )
     return choice
 
 
 def show_wellbeing_menu() -> str:
     """Display wellbeing tracking menu."""
     console.print()
-    console.print(Panel(
-        """[bold]Wellbeing Tracking[/bold]
+    console.print(
+        Panel(
+            """[bold]Wellbeing Tracking[/bold]
 
 [1] Log mood
 [2] Log exercise
@@ -83,18 +92,22 @@ def show_wellbeing_menu() -> str:
 [6] Write journal entry
 [7] Today's summary
 [0] Back""",
-        box=box.ROUNDED
-    ))
+            box=box.ROUNDED,
+        )
+    )
 
-    choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7"], default="7")
+    choice = Prompt.ask(
+        "Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7"], default="7"
+    )
     return choice
 
 
 def show_stats_menu() -> str:
     """Display stats and profile menu."""
     console.print()
-    console.print(Panel(
-        """[bold]Stats & Profile[/bold]
+    console.print(
+        Panel(
+            """[bold]Stats & Profile[/bold]
 
 [1] Trainer profile
 [2] Streaks
@@ -103,8 +116,9 @@ def show_stats_menu() -> str:
 [5] History
 [6] Change trainer name
 [0] Back""",
-        box=box.ROUNDED
-    ))
+            box=box.ROUNDED,
+        )
+    )
 
     choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6"], default="1")
     return choice
@@ -135,7 +149,7 @@ def prompt_task_details() -> dict:
         "difficulty": TaskDifficulty(difficulty),
         "priority": TaskPriority(priority),
         "due": due if due else None,
-        "description": description if description else None
+        "description": description if description else None,
     }
 
 
@@ -153,7 +167,9 @@ def prompt_exercise() -> dict:
     """Prompt for exercise entry."""
     from pokedo.core.wellbeing import ExerciseType
 
-    console.print("\nExercise types: cardio, strength, yoga, swimming, cycling, walking, running, sports, hiking, dancing, other")
+    console.print(
+        "\nExercise types: cardio, strength, yoga, swimming, cycling, walking, running, sports, hiking, dancing, other"
+    )
     exercise_type = Prompt.ask("Exercise type", default="cardio")
 
     duration = IntPrompt.ask("Duration (minutes)")
@@ -163,7 +179,7 @@ def prompt_exercise() -> dict:
     return {
         "exercise_type": ExerciseType(exercise_type),
         "duration": duration,
-        "intensity": intensity
+        "intensity": intensity,
     }
 
 

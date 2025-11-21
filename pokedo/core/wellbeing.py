@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class MoodLevel(Enum):
     """Mood levels from 1-5."""
+
     VERY_LOW = 1
     LOW = 2
     NEUTRAL = 3
@@ -17,17 +18,18 @@ class MoodLevel(Enum):
 
 class ExerciseType(str, Enum):
     """Types of exercise that map to Pokemon types."""
-    CARDIO = "cardio"           # Fire
-    STRENGTH = "strength"       # Fighting
-    YOGA = "yoga"               # Psychic
-    SWIMMING = "swimming"       # Water
-    CYCLING = "cycling"         # Electric
-    WALKING = "walking"         # Normal
-    RUNNING = "running"         # Fire
-    SPORTS = "sports"           # Fighting
-    HIKING = "hiking"           # Rock, Ground
-    DANCING = "dancing"         # Fairy
-    OTHER = "other"             # Normal
+
+    CARDIO = "cardio"  # Fire
+    STRENGTH = "strength"  # Fighting
+    YOGA = "yoga"  # Psychic
+    SWIMMING = "swimming"  # Water
+    CYCLING = "cycling"  # Electric
+    WALKING = "walking"  # Normal
+    RUNNING = "running"  # Fire
+    SPORTS = "sports"  # Fighting
+    HIKING = "hiking"  # Rock, Ground
+    DANCING = "dancing"  # Fairy
+    OTHER = "other"  # Normal
 
 
 class MoodEntry(BaseModel):
@@ -47,7 +49,7 @@ class MoodEntry(BaseModel):
             MoodLevel.LOW: -1,
             MoodLevel.NEUTRAL: 0,
             MoodLevel.GOOD: 1,
-            MoodLevel.GREAT: 2
+            MoodLevel.GREAT: 2,
         }
         return modifiers[self.mood]
 
@@ -182,22 +184,26 @@ class DailyWellbeing(BaseModel):
     @property
     def is_complete(self) -> bool:
         """Check if all wellbeing metrics are logged."""
-        return all([
-            self.mood is not None,
-            self.sleep is not None,
-            self.hydration is not None,
-        ])
+        return all(
+            [
+                self.mood is not None,
+                self.sleep is not None,
+                self.hydration is not None,
+            ]
+        )
 
     @property
     def completion_score(self) -> float:
         """Calculate completion percentage."""
         total = 6  # mood, exercise, sleep, hydration, meditation, journal
-        completed = sum([
-            self.mood is not None,
-            len(self.exercises) > 0,
-            self.sleep is not None,
-            self.hydration is not None,
-            self.meditation is not None,
-            self.journal is not None,
-        ])
+        completed = sum(
+            [
+                self.mood is not None,
+                len(self.exercises) > 0,
+                self.sleep is not None,
+                self.hydration is not None,
+                self.meditation is not None,
+                self.journal is not None,
+            ]
+        )
         return (completed / total) * 100

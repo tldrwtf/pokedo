@@ -66,11 +66,7 @@ def show_badges() -> None:
             progress = _calculate_badge_progress(badge, trainer)
             status = f"[dim]{progress}/{badge.requirement_count}[/dim]"
 
-        table.add_row(
-            badge.name,
-            badge.description,
-            status
-        )
+        table.add_row(badge.name, badge.description, status)
 
     console.print(table)
 
@@ -114,16 +110,12 @@ def show_inventory() -> None:
         "master_ball": "Guaranteed catch!",
         "evolution_stone": "Evolve eligible Pokemon",
         "legendary_ticket": "Guaranteed legendary encounter",
-        "rare_candy": "Increase Pokemon level by 1"
+        "rare_candy": "Increase Pokemon level by 1",
     }
 
     for item, count in trainer.inventory.items():
         description = item_descriptions.get(item, "Unknown item")
-        table.add_row(
-            item.replace("_", " ").title(),
-            str(count),
-            description
-        )
+        table.add_row(item.replace("_", " ").title(), str(count), description)
 
     console.print(table)
 
@@ -156,20 +148,14 @@ def show_history(
 
         bar = "[green]" + "#" * len(completed) + "[/green]" if completed else "[dim]-[/dim]"
 
-        table.add_row(
-            day.isoformat(),
-            f"{len(completed)} {bar}",
-            str(xp) if xp else "[dim]0[/dim]"
-        )
+        table.add_row(day.isoformat(), f"{len(completed)} {bar}", str(xp) if xp else "[dim]0[/dim]")
 
     console.print(table)
     console.print(f"\n[dim]Total: {total_completed} tasks, {total_xp} XP[/dim]")
 
 
 @app.command("rename")
-def rename_trainer(
-    name: str = typer.Argument(..., help="New trainer name")
-) -> None:
+def rename_trainer(name: str = typer.Argument(..., help="New trainer name")) -> None:
     """Change your trainer name."""
     trainer = db.get_or_create_trainer()
     old_name = trainer.name

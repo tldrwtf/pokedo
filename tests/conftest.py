@@ -364,7 +364,9 @@ def gratitude_journal():
 
 
 @pytest.fixture
-def complete_daily_wellbeing(good_mood, cardio_exercise, good_sleep, full_hydration, long_meditation, gratitude_journal):
+def complete_daily_wellbeing(
+    good_mood, cardio_exercise, good_sleep, full_hydration, long_meditation, gratitude_journal
+):
     """Create a complete daily wellbeing record."""
     return DailyWellbeing(
         mood=good_mood,

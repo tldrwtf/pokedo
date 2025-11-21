@@ -41,13 +41,21 @@ def parse_due_date(due: str) -> date | None:
 @app.command("add")
 def add_task(
     title: str = typer.Argument(..., help="Task title"),
-    category: TaskCategory = typer.Option(TaskCategory.PERSONAL, "--category", "-c", help="Task category"),
-    difficulty: TaskDifficulty = typer.Option(TaskDifficulty.MEDIUM, "--difficulty", "-d", help="Task difficulty"),
-    priority: TaskPriority = typer.Option(TaskPriority.MEDIUM, "--priority", "-p", help="Task priority"),
+    category: TaskCategory = typer.Option(
+        TaskCategory.PERSONAL, "--category", "-c", help="Task category"
+    ),
+    difficulty: TaskDifficulty = typer.Option(
+        TaskDifficulty.MEDIUM, "--difficulty", "-d", help="Task difficulty"
+    ),
+    priority: TaskPriority = typer.Option(
+        TaskPriority.MEDIUM, "--priority", "-p", help="Task priority"
+    ),
     due: str | None = typer.Option(None, "--due", help="Due date (YYYY-MM-DD, today, tomorrow)"),
     description: str | None = typer.Option(None, "--desc", help="Task description"),
     tags: str | None = typer.Option(None, "--tags", "-t", help="Comma-separated tags"),
-    recurrence: RecurrenceType = typer.Option(RecurrenceType.NONE, "--recur", "-r", help="Recurrence pattern")
+    recurrence: RecurrenceType = typer.Option(
+        RecurrenceType.NONE, "--recur", "-r", help="Recurrence pattern"
+    ),
 ) -> None:
     """Add a new task."""
     due_date = parse_due_date(due) if due else None
@@ -61,12 +69,14 @@ def add_task(
         priority=priority,
         due_date=due_date,
         recurrence=recurrence,
-        tags=tag_list
+        tags=tag_list,
     )
 
     task = db.create_task(task)
     console.print(f"[green]Task created![/green] ID: {task.id}")
-    console.print(f"  Category: {category.value} | Difficulty: {difficulty.value} | XP: {task.xp_reward}")
+    console.print(
+        f"  Category: {category.value} | Difficulty: {difficulty.value} | XP: {task.xp_reward}"
+    )
 
 
 @app.command("list")
@@ -74,7 +84,9 @@ def list_tasks(
     today: bool = typer.Option(False, "--today", help="Show only today's tasks"),
     week: bool = typer.Option(False, "--week", help="Show this week's tasks"),
     all_tasks: bool = typer.Option(False, "--all", "-a", help="Include completed tasks"),
-    category: TaskCategory | None = typer.Option(None, "--category", "-c", help="Filter by category")
+    category: TaskCategory | None = typer.Option(
+        None, "--category", "-c", help="Filter by category"
+    ),
 ) -> None:
     """List tasks."""
     if today:
@@ -99,9 +111,7 @@ def list_tasks(
 
 
 @app.command("show")
-def show_task(
-    task_id: int = typer.Argument(..., help="Task ID")
-) -> None:
+def show_task(task_id: int = typer.Argument(..., help="Task ID")) -> None:
     """Show task details."""
     task = db.get_task(task_id)
     if not task:
@@ -112,9 +122,7 @@ def show_task(
 
 
 @app.command("complete")
-def complete_task(
-    task_id: int = typer.Argument(..., help="Task ID to complete")
-) -> None:
+def complete_task(task_id: int = typer.Argument(..., help="Task ID to complete")) -> None:
     """Complete a task and trigger Pokemon encounter."""
     task = db.get_task(task_id)
     if not task:
@@ -143,7 +151,7 @@ def complete_task(
         level_up=result.level_up,
         new_level=result.new_level,
         streak_count=result.streak_count,
-        items_earned=result.items_earned
+        items_earned=result.items_earned,
     )
 
     # Add items to inventory
@@ -212,7 +220,7 @@ def _create_recurring_task(original: Task) -> None:
         priority=original.priority,
         due_date=next_due,
         recurrence=original.recurrence,
-        tags=original.tags
+        tags=original.tags,
     )
     db.create_task(new_task)
     console.print(f"[dim]Next occurrence created for {next_due}[/dim]")
@@ -226,7 +234,7 @@ def edit_task(
     difficulty: TaskDifficulty | None = typer.Option(None, "--difficulty", "-d"),
     priority: TaskPriority | None = typer.Option(None, "--priority", "-p"),
     due: str | None = typer.Option(None, "--due"),
-    description: str | None = typer.Option(None, "--desc")
+    description: str | None = typer.Option(None, "--desc"),
 ) -> None:
     """Edit a task."""
     task = db.get_task(task_id)
@@ -254,7 +262,7 @@ def edit_task(
 @app.command("delete")
 def delete_task(
     task_id: int = typer.Argument(..., help="Task ID"),
-    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation")
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ) -> None:
     """Delete a task."""
     task = db.get_task(task_id)
@@ -271,9 +279,7 @@ def delete_task(
 
 
 @app.command("archive")
-def archive_task(
-    task_id: int = typer.Argument(..., help="Task ID")
-) -> None:
+def archive_task(task_id: int = typer.Argument(..., help="Task ID")) -> None:
     """Archive a completed task."""
     task = db.get_task(task_id)
     if not task:

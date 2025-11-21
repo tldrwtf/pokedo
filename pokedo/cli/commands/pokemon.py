@@ -1,6 +1,5 @@
 """Pokemon management CLI commands."""
 
-
 import typer
 from rich import box
 from rich.console import Console
@@ -28,7 +27,7 @@ def show_team() -> None:
 @app.command("box")
 def show_box(
     page: int = typer.Option(1, "--page", "-p", help="Page number"),
-    per_page: int = typer.Option(20, "--limit", "-l", help="Pokemon per page")
+    per_page: int = typer.Option(20, "--limit", "-l", help="Pokemon per page"),
 ) -> None:
     """Show all Pokemon in your box."""
     all_pokemon = db.get_all_pokemon()
@@ -58,10 +57,7 @@ def pokemon_info(
 
 
 def render_pokedex(
-    caught_only: bool = False,
-    page: int = 1,
-    gen: int = 0,
-    auto_focus: bool = False
+    caught_only: bool = False, page: int = 1, gen: int = 0, auto_focus: bool = False
 ) -> None:
     """Render the Pokedex view for both CLI commands and shortcuts."""
     from pokedo.utils.config import config
@@ -85,7 +81,7 @@ def render_pokedex(
     if auto_focus and entries and page == 1:
         focus_index = next(
             (i for i, entry in enumerate(entries) if entry.is_caught),
-            next((i for i, entry in enumerate(entries) if entry.is_seen), 0)
+            next((i for i, entry in enumerate(entries) if entry.is_seen), 0),
         )
         page = (focus_index // per_page) + 1
 
@@ -121,25 +117,33 @@ def render_pokedex(
         table.add_row(
             f"{entry.pokedex_id:04d}",
             name,
-            f"[{type_color}]{entry.type1.capitalize()}[/{type_color}]" if entry.is_seen else "[dim]???[/dim]",
+            (
+                f"[{type_color}]{entry.type1.capitalize()}[/{type_color}]"
+                if entry.is_seen
+                else "[dim]???[/dim]"
+            ),
             caught_str,
-            shiny_str
+            shiny_str,
         )
 
     console.print(table)
 
     if gen > 0 and gen in config.generation_ranges:
         gen_total = config.generation_ranges[gen][1] - config.generation_ranges[gen][0] + 1
-        console.print(f"\n[dim]Gen {gen}: Seen {total_seen}/{gen_total} | Caught {total_caught}/{gen_total}[/dim]")
+        console.print(
+            f"\n[dim]Gen {gen}: Seen {total_seen}/{gen_total} | Caught {total_caught}/{gen_total}[/dim]"
+        )
     else:
-        console.print(f"\n[dim]Seen: {total_seen}/{total_pokemon} | Caught: {total_caught}/{total_pokemon} ({(total_caught/total_pokemon)*100:.1f}%)[/dim]")
+        console.print(
+            f"\n[dim]Seen: {total_seen}/{total_pokemon} | Caught: {total_caught}/{total_pokemon} ({(total_caught/total_pokemon)*100:.1f}%)[/dim]"
+        )
 
 
 @app.command("pokedex")
 def show_pokedex(
     caught_only: bool = typer.Option(False, "--caught", "-c", help="Show only caught Pokemon"),
     page: int = typer.Option(1, "--page", "-p", help="Page number"),
-    gen: int = typer.Option(0, "--gen", "-g", help="Filter by generation (1-9)")
+    gen: int = typer.Option(0, "--gen", "-g", help="Filter by generation (1-9)"),
 ) -> None:
     """Show your Pokedex progress."""
     render_pokedex(caught_only=caught_only, page=page, gen=gen)
@@ -191,7 +195,7 @@ def remove_active(
 @app.command("nickname")
 def set_nickname(
     pokemon_id: int = typer.Argument(..., help="Pokemon ID"),
-    nickname: str = typer.Argument(..., help="New nickname")
+    nickname: str = typer.Argument(..., help="New nickname"),
 ) -> None:
     """Give a Pokemon a nickname."""
     pokemon = db.get_pokemon(pokemon_id)
@@ -206,9 +210,7 @@ def set_nickname(
 
 
 @app.command("favorite")
-def toggle_favorite(
-    pokemon_id: int = typer.Argument(..., help="Pokemon ID")
-) -> None:
+def toggle_favorite(pokemon_id: int = typer.Argument(..., help="Pokemon ID")) -> None:
     """Toggle favorite status on a Pokemon."""
     pokemon = db.get_pokemon(pokemon_id)
     if not pokemon:
@@ -225,7 +227,7 @@ def toggle_favorite(
 @app.command("release")
 def release_pokemon(
     pokemon_id: int = typer.Argument(..., help="Pokemon ID to release"),
-    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation")
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ) -> None:
     """Release a Pokemon back into the wild."""
     pokemon = db.get_pokemon(pokemon_id)
@@ -251,9 +253,7 @@ def release_pokemon(
 
 
 @app.command("evolve")
-def evolve_pokemon(
-    pokemon_id: int = typer.Argument(..., help="Pokemon ID to evolve")
-) -> None:
+def evolve_pokemon(pokemon_id: int = typer.Argument(..., help="Pokemon ID to evolve")) -> None:
     """Evolve a Pokemon if eligible."""
     pokemon = db.get_pokemon(pokemon_id)
     if not pokemon:
@@ -263,7 +263,9 @@ def evolve_pokemon(
     if not pokemon.can_evolve:
         console.print(f"[yellow]{pokemon.display_name} cannot evolve right now.[/yellow]")
         if pokemon.evolution_id and pokemon.evolution_level:
-            console.print(f"[dim]Needs to reach level {pokemon.evolution_level}. Current: {pokemon.level}[/dim]")
+            console.print(
+                f"[dim]Needs to reach level {pokemon.evolution_level}. Current: {pokemon.level}[/dim]"
+            )
         raise typer.Exit(0)
 
     if not pokemon.evolution_id:
@@ -272,9 +274,7 @@ def evolve_pokemon(
 
     # Create evolved Pokemon
     evolved = create_pokemon_sync(
-        pokemon.evolution_id,
-        is_shiny=pokemon.is_shiny,
-        catch_location=pokemon.catch_location
+        pokemon.evolution_id, is_shiny=pokemon.is_shiny, catch_location=pokemon.catch_location
     )
 
     if not evolved:
@@ -313,5 +313,7 @@ def evolve_pokemon(
     trainer.evolutions_triggered += 1
     db.save_trainer(trainer)
 
-    console.print(f"[bold green]{pokemon.display_name} evolved into {evolved.name.upper()}![/bold green]")
+    console.print(
+        f"[bold green]{pokemon.display_name} evolved into {evolved.name.upper()}![/bold green]"
+    )
     display_pokemon(evolved)

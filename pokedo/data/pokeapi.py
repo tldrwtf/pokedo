@@ -14,34 +14,107 @@ from pokedo.utils.config import config
 # Legendary Pokemon (all generations)
 LEGENDARY_IDS = {
     # Gen 1
-    144, 145, 146, 150,  # Articuno, Zapdos, Moltres, Mewtwo
+    144,
+    145,
+    146,
+    150,  # Articuno, Zapdos, Moltres, Mewtwo
     # Gen 2
-    243, 244, 245, 249, 250,  # Raikou, Entei, Suicune, Lugia, Ho-Oh
+    243,
+    244,
+    245,
+    249,
+    250,  # Raikou, Entei, Suicune, Lugia, Ho-Oh
     # Gen 3
-    377, 378, 379, 380, 381, 382, 383, 384,  # Regis, Lati@s, Weather trio
+    377,
+    378,
+    379,
+    380,
+    381,
+    382,
+    383,
+    384,  # Regis, Lati@s, Weather trio
     # Gen 4
-    480, 481, 482, 483, 484, 485, 486, 487, 488,  # Lake trio, Creation trio, Heatran, Regigigas, Giratina, Cresselia
+    480,
+    481,
+    482,
+    483,
+    484,
+    485,
+    486,
+    487,
+    488,  # Lake trio, Creation trio, Heatran, Regigigas, Giratina, Cresselia
     # Gen 5
-    638, 639, 640, 641, 642, 643, 644, 645, 646,  # Swords of Justice, Forces of Nature, Tao trio
+    638,
+    639,
+    640,
+    641,
+    642,
+    643,
+    644,
+    645,
+    646,  # Swords of Justice, Forces of Nature, Tao trio
     # Gen 6
-    716, 717, 718,  # Xerneas, Yveltal, Zygarde
+    716,
+    717,
+    718,  # Xerneas, Yveltal, Zygarde
     # Gen 7
-    785, 786, 787, 788, 789, 790, 791, 792, 800,  # Tapus, Cosmog line, Necrozma
+    785,
+    786,
+    787,
+    788,
+    789,
+    790,
+    791,
+    792,
+    800,  # Tapus, Cosmog line, Necrozma
     # Gen 8
-    888, 889, 890, 891, 892, 894, 895, 896, 897, 898,  # Sword/Shield legends
+    888,
+    889,
+    890,
+    891,
+    892,
+    894,
+    895,
+    896,
+    897,
+    898,  # Sword/Shield legends
     # Gen 9
-    1001, 1002, 1003, 1004, 1007, 1008, 1014, 1015, 1016, 1017, 1024,  # Paldea legends
+    1001,
+    1002,
+    1003,
+    1004,
+    1007,
+    1008,
+    1014,
+    1015,
+    1016,
+    1017,
+    1024,  # Paldea legends
 }
 
 # Mythical Pokemon (all generations)
 MYTHICAL_IDS = {
     151,  # Mew
     251,  # Celebi
-    385, 386,  # Jirachi, Deoxys
-    489, 490, 491, 492, 493,  # Phione, Manaphy, Darkrai, Shaymin, Arceus
-    494, 647, 648, 649,  # Victini, Keldeo, Meloetta, Genesect
-    719, 720, 721,  # Diancie, Hoopa, Volcanion
-    801, 802, 807, 808, 809,  # Magearna, Marshadow, Zeraora, Meltan, Melmetal
+    385,
+    386,  # Jirachi, Deoxys
+    489,
+    490,
+    491,
+    492,
+    493,  # Phione, Manaphy, Darkrai, Shaymin, Arceus
+    494,
+    647,
+    648,
+    649,  # Victini, Keldeo, Meloetta, Genesect
+    719,
+    720,
+    721,  # Diancie, Hoopa, Volcanion
+    801,
+    802,
+    807,
+    808,
+    809,  # Magearna, Marshadow, Zeraora, Meltan, Melmetal
     893,  # Zarude
     1025,  # Pecharunt
 }
@@ -58,39 +131,87 @@ PSEUDO_LEGENDARY_IDS = {
     784,  # Kommo-o
     887,  # Dragapult
     998,  # Baxcalibur (if exists)
-    1018, 1019, 1020, 1021, 1022, 1023,  # Paldea pseudo-legendaries
+    1018,
+    1019,
+    1020,
+    1021,
+    1022,
+    1023,  # Paldea pseudo-legendaries
 }
 
 # Final evolution starters (all generations) - Epic rarity
 STARTER_FINAL_IDS = {
     # Gen 1
-    3, 6, 9,  # Venusaur, Charizard, Blastoise
+    3,
+    6,
+    9,  # Venusaur, Charizard, Blastoise
     # Gen 2
-    154, 157, 160,  # Meganium, Typhlosion, Feraligatr
+    154,
+    157,
+    160,  # Meganium, Typhlosion, Feraligatr
     # Gen 3
-    254, 257, 260,  # Sceptile, Blaziken, Swampert
+    254,
+    257,
+    260,  # Sceptile, Blaziken, Swampert
     # Gen 4
-    389, 392, 395,  # Torterra, Infernape, Empoleon
+    389,
+    392,
+    395,  # Torterra, Infernape, Empoleon
     # Gen 5
-    497, 500, 503,  # Serperior, Emboar, Samurott
+    497,
+    500,
+    503,  # Serperior, Emboar, Samurott
     # Gen 6
-    652, 655, 658,  # Chesnaught, Delphox, Greninja
+    652,
+    655,
+    658,  # Chesnaught, Delphox, Greninja
     # Gen 7
-    724, 727, 730,  # Decidueye, Incineroar, Primarina
+    724,
+    727,
+    730,  # Decidueye, Incineroar, Primarina
     # Gen 8
-    812, 815, 818,  # Rillaboom, Cinderace, Inteleon
+    812,
+    815,
+    818,  # Rillaboom, Cinderace, Inteleon
     # Gen 9
-    908, 911, 914,  # Meowscarada, Skeledirge, Quaquaval
+    908,
+    911,
+    914,  # Meowscarada, Skeledirge, Quaquaval
 }
 
 # Ultra Beasts - Rare/Epic
 ULTRA_BEAST_IDS = {
-    793, 794, 795, 796, 797, 798, 799, 803, 804, 805, 806,  # All Ultra Beasts
+    793,
+    794,
+    795,
+    796,
+    797,
+    798,
+    799,
+    803,
+    804,
+    805,
+    806,  # All Ultra Beasts
 }
 
 # Paradox Pokemon - Rare
 PARADOX_IDS = {
-    984, 985, 986, 987, 988, 989, 990, 991, 992, 993, 994, 995, 1005, 1006, 1009, 1010,
+    984,
+    985,
+    986,
+    987,
+    988,
+    989,
+    990,
+    991,
+    992,
+    993,
+    994,
+    995,
+    1005,
+    1006,
+    1009,
+    1010,
 }
 
 
@@ -237,14 +358,11 @@ class PokeAPIClient:
             sprite_url=self.get_sprite_url(pokemon_id),
             rarity=rarity,
             evolves_from=evolves_from,
-            evolves_to=evolves_to
+            evolves_to=evolves_to,
         )
 
     async def create_pokemon_instance(
-        self,
-        pokemon_id: int,
-        is_shiny: bool = False,
-        catch_location: str | None = None
+        self, pokemon_id: int, is_shiny: bool = False, catch_location: str | None = None
     ) -> Pokemon | None:
         """Create a Pokemon instance from API data."""
         pokemon_data = await self.get_pokemon(pokemon_id)
@@ -283,7 +401,7 @@ class PokeAPIClient:
             evolution_id=evolution_id,
             evolution_level=evolution_level,
             evolution_method=evolution_method,
-            caught_at=datetime.now()
+            caught_at=datetime.now(),
         )
 
     def _classify_rarity(self, pokemon_id: int, species_data: dict | None) -> PokemonRarity:
@@ -334,7 +452,11 @@ class PokeAPIClient:
 
     def _parse_evolution_chain(self, chain: dict, pokemon_id: int) -> dict:
         """Parse evolution chain to find evolution info for a specific Pokemon."""
-        result: dict[str, int | str | None] = {"evolves_to": None, "min_level": None, "method": None}
+        result: dict[str, int | str | None] = {
+            "evolves_to": None,
+            "min_level": None,
+            "method": None,
+        }
 
         def search_chain(node: dict) -> bool:
             species_url = node["species"]["url"]
@@ -388,17 +510,17 @@ class PokeAPIClient:
 def get_pokemon_sync(pokemon_id: int) -> dict | None:
     """Synchronous wrapper for getting Pokemon data."""
     import asyncio
+
     client = PokeAPIClient()
     return asyncio.run(client.get_pokemon(pokemon_id))
 
 
 def create_pokemon_sync(
-    pokemon_id: int,
-    is_shiny: bool = False,
-    catch_location: str | None = None
+    pokemon_id: int, is_shiny: bool = False, catch_location: str | None = None
 ) -> Pokemon | None:
     """Synchronous wrapper for creating Pokemon instance."""
     import asyncio
+
     client = PokeAPIClient()
     return asyncio.run(client.create_pokemon_instance(pokemon_id, is_shiny, catch_location))
 
@@ -406,6 +528,7 @@ def create_pokemon_sync(
 def create_pokedex_entry_sync(pokemon_id: int) -> PokedexEntry | None:
     """Synchronous wrapper for creating Pokedex entry."""
     import asyncio
+
     client = PokeAPIClient()
     return asyncio.run(client.create_pokedex_entry(pokemon_id))
 

@@ -32,8 +32,19 @@ class TestExerciseType:
 
     def test_exercise_types_exist(self):
         """Verify exercise types exist."""
-        expected = ["cardio", "strength", "yoga", "swimming", "cycling",
-                    "walking", "running", "sports", "hiking", "dancing", "other"]
+        expected = [
+            "cardio",
+            "strength",
+            "yoga",
+            "swimming",
+            "cycling",
+            "walking",
+            "running",
+            "sports",
+            "hiking",
+            "dancing",
+            "other",
+        ]
         actual = [e.value for e in ExerciseType]
         assert sorted(actual) == sorted(expected)
 
