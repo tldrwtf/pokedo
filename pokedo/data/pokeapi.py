@@ -335,7 +335,7 @@ class PokeAPIClient:
 
     def _parse_evolution_chain(self, chain: dict, pokemon_id: int) -> dict:
         """Parse evolution chain to find evolution info for a specific Pokemon."""
-        result = {"evolves_to": None, "min_level": None, "method": None}
+        result: dict[str, Optional[int | str]] = {"evolves_to": None, "min_level": None, "method": None}
 
         def search_chain(node: dict) -> bool:
             species_url = node["species"]["url"]
