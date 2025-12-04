@@ -36,8 +36,10 @@ pokedo = "pokedo.cli.app:app"
 packages = ["pokedo"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore::sqlalchemy.exc.SAWarning",
+]
 
 [tool.black]
 line-length = 100
