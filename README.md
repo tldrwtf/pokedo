@@ -294,17 +294,16 @@ When you complete a task, there's a chance to encounter a Pokemon:
 
 Task categories influence Pokemon type encounter probabilities:
 
-| Category | Boosted Types           |
-| -------- | ----------------------- |
-| Work     | Steel, Electric, Normal |
-| Exercise | Fighting, Fire, Rock    |
-| Learning | Psychic, Ghost, Dark    |
-| Personal | Normal, Fairy, Flying   |
-| Health   | Grass, Water, Poison    |
-| Creative | Fairy, Dragon, Ice      |
+| Category | Boosted Types |
+|----------|---------------|
+| Work | Steel, Electric, Normal |
+| Exercise | Fighting, Fire, Rock |
+| Learning | Psychic, Ghost, Dark |
+| Personal | Normal, Fairy, Flying |
+| Health | Grass, Water, Poison |
+| Creative | Fairy, Dragon, Ice |
 
 Wellbeing actions also affect type encounters:
-
 - **Hydration goal (8 glasses)**: Water-type bonus
 - **Meditation**: Psychic/Fairy bonus
 - **Exercise**: Fighting-type bonus
@@ -331,6 +330,7 @@ This system introduces deeper RPG mechanics for training your Pokemon's stats:
 
 | Difficulty | EV Yield |
 | ---------- | -------- |
+|------------|----------|
 | Easy       | 1 EV     |
 | Medium     | 2 EVs    |
 | Hard       | 4 EVs    |
