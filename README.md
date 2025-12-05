@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.2.0 | **License:** MIT | **Python:** 3.10+
+**Version:** 0.2.1 | **License:** MIT | **Python:** 3.10+
 
 ## Table of Contents
 
