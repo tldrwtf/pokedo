@@ -181,7 +181,11 @@ class RewardEngine:
             actual_added = active_pokemon.add_evs(stat, amount)
             if actual_added > 0:
                 db.save_pokemon(active_pokemon)
-                result.evs_earned = {"pokemon": active_pokemon.display_name, "stat": stat, "amount": actual_added}
+                result.evs_earned = {
+                    "pokemon": active_pokemon.display_name,
+                    "stat": stat,
+                    "amount": actual_added,
+                }
 
         # Update streak
         today = date.today()

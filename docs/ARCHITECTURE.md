@@ -21,6 +21,7 @@ PokeDo is a gamified task manager that combines productivity tracking with Pokem
 - **Presentation Layer** (CLI) - User interface and command handling
 - **Business Logic Layer** (Core) - Domain models and game mechanics
 - **Data Access Layer** (Data) - Database operations and API clients
+- **Synchronization Layer** (Sync) - Client-side change queuing and server communication
 
 **Technology Stack:**
 - Python 3.10+
@@ -28,9 +29,10 @@ PokeDo is a gamified task manager that combines productivity tracking with Pokem
 - Rich (Terminal UI)
 - Pydantic (Data validation)
 - SQLite (Local storage)
-- FastAPI (Server & Sync)
-- JWT/Bcrypt (Authentication)
-- httpx (Async HTTP client)
+- FastAPI (Server)
+- Bcrypt (Direct password hashing)
+- httpx (Async HTTP client for PokeAPI)
+- requests (Sync HTTP client for Server Sync)
 
 ---
 
@@ -44,7 +46,7 @@ pokedo/
 │   ├── app.py            # Main Typer application
 │   └── ...
 ├── core/                 # Business Logic Layer
-│   ├── auth.py           # NEW: Authentication logic
+│   ├── auth.py           # Authentication logic (Bcrypt/JWT)
 │   ├── task.py           # Task model and enums
 │   ├── trainer.py        # Trainer model and progression
 │   ├── pokemon.py        # Pokemon and Pokedex models
@@ -52,8 +54,9 @@ pokedo/
 │   └── wellbeing.py      # Wellbeing tracking models
 ├── data/                 # Data Access Layer
 │   ├── database.py       # SQLite operations
-│   └── pokeapi.py        # PokeAPI client
-├── server.py             # NEW: FastAPI server entry point
+│   ├── pokeapi.py        # PokeAPI client
+│   └── sync.py           # NEW: Sync client and change queue
+├── server.py             # FastAPI server entry point
 └── utils/                # Utilities
     ├── config.py         # Configuration management
     └── helpers.py        # Helper functions
@@ -96,7 +99,7 @@ Handles centralized operations and synchronization.
 The core layer contains domain models and game logic.
 
 **`auth.py`** - Authentication
-- Password hashing (Bcrypt)
+- Password hashing (Direct Bcrypt usage)
 - JWT Token generation and verification
 
 **`task.py`** - Task Management
@@ -157,23 +160,42 @@ class DailyWellbeing:
 - Query builders
 
 **`pokeapi.py`** - External API Client
-- Async HTTP client using httpx
+- Async HTTP client using `httpx`
 - Response caching (JSON files)
 - Sprite downloading
 - Evolution chain parsing
 
-### Utilities (`utils/`)
+**`sync.py`** - Synchronization Client
+- Local change queue management (SQLModel `Change` entity)
+- Sync push operations using `requests`
 
-**`config.py`** - Configuration
-- Data directory paths
-- Game constants (XP values, catch rates)
-- Generation ID ranges
-- Rarity thresholds
+---
 
-**`helpers.py`** - Helper Functions
-- Date parsing and formatting
-- Input validation
-- Common utilities
+## Synchronization Layer
+
+This layer enables local-first data handling with cloud synchronization.
+
+**Concept:**
+- **Local-First:** All user actions (Task Create, Pokemon Catch) are committed to the local SQLite database immediately.
+- **Change Queue:** Simultaneously, a record of the action is written to a `change` table in the local DB.
+- **Push Sync:** A background process (or manual command) reads unsynced changes from the `change` table and pushes them to the server via HTTP POST.
+
+**Change Entity:**
+```python
+class Change(SQLModel):
+    id: str (UUID)
+    entity_id: str
+    entity_type: str (e.g., "task", "pokemon")
+    action: str (CREATE, UPDATE, DELETE)
+    payload: JSON
+    timestamp: datetime
+    synced: bool
+```
+
+**Sync Process:**
+1.  `queue_change()`: Called by CRUD functions in `database.py` whenever data modifies.
+2.  `push_changes()`: Reads unsynced records, sends to `POST /sync`.
+3.  On 200 OK, marks records as `synced=True`.
 
 ---
 
@@ -182,7 +204,7 @@ class DailyWellbeing:
 ### Task Completion Flow
 
 ```
-User Input -> CLI Command -> Validate Input -> Database Update
+User Input -> CLI Command -> Validate Input -> Database Update -> Queue Change
                                                     |
                                                     v
 Display Result <- UI Components <- Reward System <- Calculate Rewards
@@ -194,7 +216,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
                                    Catch Attempt
                                          |
                                          v
-                                   Update Database
+                                   Update Database -> Queue Change
 ```
 
 ### Pokemon Encounter Flow

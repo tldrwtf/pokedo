@@ -1,7 +1,5 @@
 """Tests for authentication module."""
 
-from datetime import timedelta
-
 import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
@@ -80,7 +78,7 @@ class TestAuthEndpoints:
             "/register",
             json={"username": "loginuser", "password": "password123"},
         )
-        
+
         response = client.post(
             "/token",
             data={"username": "loginuser", "password": "password123"},
@@ -96,7 +94,7 @@ class TestAuthEndpoints:
             "/register",
             json={"username": "failuser", "password": "password123"},
         )
-        
+
         response = client.post(
             "/token",
             data={"username": "failuser", "password": "wrongpassword"},
@@ -125,7 +123,7 @@ class TestProtectedEndpoints:
             data={"username": "syncuser", "password": "password123"},
         )
         token = login_res.json()["access_token"]
-        
+
         # Sync
         response = client.post(
             "/sync",

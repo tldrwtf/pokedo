@@ -1,4 +1,4 @@
-# EV / IV Spec (Pokedo Expansion) — Minimal Reference
+# EV / IV Spec (Pokedo Expansion) - Minimal Reference
 
 **Status:** Partially Implemented (Core Models & Helpers done; DB persistence pending)
 

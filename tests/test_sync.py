@@ -1,4 +1,3 @@
-import os
 from pokedo.data import sync
 
 

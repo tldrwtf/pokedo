@@ -377,7 +377,9 @@ class TestEVRewards:
     def engine(self):
         return RewardEngine()
 
-    def test_ev_award_active_pokemon(self, engine, sample_task, new_trainer, sample_pokemon, monkeypatch):
+    def test_ev_award_active_pokemon(
+        self, engine, sample_task, new_trainer, sample_pokemon, monkeypatch
+    ):
         """Task completion awards EVs to active Pokemon."""
         from pokedo.data.database import db
 
@@ -403,7 +405,11 @@ class TestEVRewards:
         amount = sample_task.ev_yield
         assert sample_pokemon.evs[stat] == amount
         assert len(saved_pokemon) == 1
-        assert result.evs_earned == {"pokemon": sample_pokemon.display_name, "stat": stat, "amount": amount}
+        assert result.evs_earned == {
+            "pokemon": sample_pokemon.display_name,
+            "stat": stat,
+            "amount": amount,
+        }
 
     def test_no_evs_without_active_team(self, engine, sample_task, new_trainer, monkeypatch):
         """No EVs awarded if no active team."""

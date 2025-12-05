@@ -2,18 +2,17 @@
 Example CLI tool using Pokedo's real domain models.
 Demonstrates the EV/IV system logic.
 """
+
 import typer
+
 from pokedo.core.pokemon import Pokemon
 from pokedo.core.task import Task, TaskCategory, TaskDifficulty
 
 app = typer.Typer()
 
+
 @app.command()
-def train(
-    task_title: str = "Training Session",
-    difficulty: str = "medium",
-    category: str = "work"
-):
+def train(task_title: str = "Training Session", difficulty: str = "medium", category: str = "work"):
     """
     Simulate a training session using Pokedo models.
     """
@@ -38,10 +37,11 @@ def train(
 
     # 2. Apply Mechanics
     added = pokemon.add_evs(task.stat_affinity, task.ev_yield)
-    
+
     typer.echo(f"\nResult: +{added} EVs to {task.stat_affinity}")
     typer.echo(f"New EVs: {pokemon.evs}")
     typer.echo(f"Remaining EV capacity: {pokemon.remaining_evs}")
+
 
 if __name__ == "__main__":
     app()
