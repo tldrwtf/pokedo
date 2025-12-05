@@ -21,14 +21,14 @@
 
 ### Installation
 
-1. Clone the repository:
+1.  Clone the repository:
 
     ```bash
     git clone https://github.com/tldrwtf/pokedo.git
     cd pokedo
     ```
 
-1. Create a virtual environment:
+2.  Create a virtual environment:
 
     ```bash
     python -m venv venv
@@ -40,13 +40,13 @@
     source venv/bin/activate
     ```
 
-1. Install development dependencies (formatter, linter, tests):
+3.  Install development dependencies (formatter, linter, tests):
 
     ```bash
     pip install -e ".[dev]"
     ```
 
-1. Initialize the application (for testing):
+4.  Initialize the application (for testing):
 
     ```bash
     pokedo init --name "Developer" --quick

@@ -148,10 +148,12 @@ class Database:
                     last_active_date TEXT
                 )
             """)
-            
+
             # Migration: Add trainer_class if missing
             try:
-                cursor.execute("ALTER TABLE trainer ADD COLUMN trainer_class TEXT DEFAULT 'ace_trainer'")
+                cursor.execute(
+                    "ALTER TABLE trainer ADD COLUMN trainer_class TEXT DEFAULT 'ace_trainer'"
+                )
             except sqlite3.OperationalError:
                 pass  # Column likely exists
 
@@ -634,7 +636,11 @@ class Database:
         return Trainer(
             id=row["id"],
             name=row["name"],
-            trainer_class=TrainerClass(row["trainer_class"]) if "trainer_class" in row.keys() else TrainerClass.ACE_TRAINER,
+            trainer_class=(
+                TrainerClass(row["trainer_class"])
+                if "trainer_class" in row.keys()
+                else TrainerClass.ACE_TRAINER
+            ),
             created_at=datetime.fromisoformat(row["created_at"]),
             total_xp=row["total_xp"],
             tasks_completed=row["tasks_completed"],

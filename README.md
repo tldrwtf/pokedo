@@ -32,7 +32,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Catch Pokemon by completing tasks
 - **All 1025 Pokemon** from Gen 1 (Kanto) through Gen 9 (Paldea)
 - Pokemon rarity based on task difficulty
-- Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training (in progress)
+- Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training (partial implementation)
 - Shiny Pokemon (rare variants with boosted rates from streaks)
 - Legendary, Mythical, Pseudo-Legendary, and Ultra Beast encounters
 - Paradox Pokemon from Scarlet/Violet
@@ -102,7 +102,7 @@ pokedo
 ### Initialize
 
 ```bash
-# Full initialization (all 1025 Pokemon - takes a few minutes first time)
+# Full initialization (all 1025 Pokemon, takes a few minutes first time)
 pokedo init --name "Ash"
 
 # Quick start with Gen 1 only (151 Pokemon)
@@ -202,7 +202,7 @@ pokedo stats history --days 14
 
 ### Server Usage (Optional)
 
-PokeDo is developing a FastAPI server to enable cloud synchronization and multi-user features. You can run the development server and test its authentication endpoints.
+PokeDo is developing a FastAPI server to enable cloud synchronization and multi-user features. This system uses `requests` for client-side pushing and `bcrypt` for secure authentication.
 
 1.  **Run the Server:**
 

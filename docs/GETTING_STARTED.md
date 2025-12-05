@@ -1,50 +1,83 @@
 # Getting Started (Developer)
 
-Prereqs:
+## Prerequisites
 
-- Python 3.11+, pip
-- Docker (for postgres) — optional for server dev
+- Python 3.10+
+- pip (Python package manager)
+- Docker (Optional, for future PostgreSQL support)
 
-Install:
-Windows cmd.exe:
+## Installation
 
-```
+**Windows (cmd.exe):**
+
+```cmd
 python -m venv .venv
-.venv\\Scripts\\activate
+.venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-Run CLI examples:
+**Linux/macOS:**
 
-```
-python -m pokedo.cli.app init-db
-python -m pokedo.cli.app add-task "Finish report" --category work --difficulty medium
-python -m pokedo.cli.app add-pokemon "Starter"
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
 
-Run server (dev):
+## Running the CLI
 
-```
-# Starts FastAPI server on port 8000 with hot reload
+1.  **Initialize the Database:**
+    This downloads the initial Pokemon data cache.
+
+    ```bash
+    pokedo init --name "Dev" --quick
+    ```
+
+2.  **Basic Commands:**
+
+    ```bash
+    pokedo task add "Finish report" --category work --difficulty medium
+    pokedo task list
+    pokedo pokemon box
+    ```
+
+## Running the Server
+
+To test the synchronization features, you can run the local FastAPI development server.
+
+```bash
 uvicorn pokedo.server:app --reload --port 8000
 ```
 
-Test Auth:
+## Testing Authentication
+
+You can use `curl` to test the registration and login flow.
+
+**1. Register a user:**
 
 ```bash
-# 1. Register
-curl -X POST http://localhost:8000/register -H "Content-Type: application/json" -d "{\"username\": \"me\", \"password\": \"secret\"}"
-
-# 2. Login
-curl -X POST http://localhost:8000/token -F "username=me" -F "password=secret"
+curl -X POST http://localhost:8000/register \
+  -H "Content-Type: application/json" \
+  -d "{\"username\": \"me\", \"password\": \"secret\"}"
 ```
 
-Run tests:
+**2. Login to get a token:**
 
+```bash
+curl -X POST http://localhost:8000/token \
+  -F "username=me" \
+  -F "password=secret"
 ```
-pytest -q
+
+## Running Tests
+
+Run the full test suite to ensure everything is working correctly.
+
+```bash
+pytest
 ```
 
-Notes:
+## Notes
 
-- The repo uses a local-first SQLite DB for the CLI; if you start Postgres (via docker-compose), set `DATABASE_URL` accordingly.
+- The application uses a local-first SQLite database by default (`~/.pokedo/pokedo.db`).
+- If you are working on the Sync client, remember to initialize the sync table: `python -m pokedo.data.sync init`.
