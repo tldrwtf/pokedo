@@ -250,3 +250,37 @@ class TestTaskTypeAffinity:
             task = Task(title="Test", category=category)
             types = task.get_type_affinity()
             assert len(types) == 3
+
+
+class TestTaskStatAffinity:
+    """Tests for Task.stat_affinity property."""
+
+    def test_stat_affinities(self):
+        """Verify categories map to correct stats."""
+        mappings = {
+            TaskCategory.WORK: "spa",
+            TaskCategory.EXERCISE: "atk",
+            TaskCategory.LEARNING: "spd",
+            TaskCategory.HEALTH: "hp",
+            TaskCategory.PERSONAL: "def",
+            TaskCategory.CREATIVE: "spe",
+        }
+        for category, expected_stat in mappings.items():
+            task = Task(title="Test", category=category)
+            assert task.stat_affinity == expected_stat
+
+
+class TestTaskEVYield:
+    """Tests for Task.ev_yield property."""
+
+    def test_ev_yields(self):
+        """Verify difficulties map to correct EV yields."""
+        mappings = {
+            TaskDifficulty.EASY: 1,
+            TaskDifficulty.MEDIUM: 2,
+            TaskDifficulty.HARD: 4,
+            TaskDifficulty.EPIC: 8,
+        }
+        for difficulty, expected_yield in mappings.items():
+            task = Task(title="Test", difficulty=difficulty)
+            assert task.ev_yield == expected_yield

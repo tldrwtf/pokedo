@@ -194,6 +194,65 @@ class TestPokemonHappiness:
         assert sample_pokemon.happiness == 0
 
 
+class TestPokemonEVs:
+    """Tests for Pokemon EV system."""
+
+    def test_default_evs(self, sample_pokemon):
+        """EVs default to 0."""
+        assert sum(sample_pokemon.evs.values()) == 0
+        assert sample_pokemon.remaining_evs == 510
+
+    def test_add_evs_basic(self, sample_pokemon):
+        """Adding EVs works."""
+        amount = sample_pokemon.add_evs("atk", 10)
+        assert amount == 10
+        assert sample_pokemon.evs["atk"] == 10
+        assert sample_pokemon.remaining_evs == 500
+
+    def test_add_evs_stat_cap(self, sample_pokemon):
+        """EVs capped at 252 per stat."""
+        sample_pokemon.add_evs("atk", 200)
+        amount = sample_pokemon.add_evs("atk", 100)
+        assert amount == 52  # Only 52 needed to reach 252
+        assert sample_pokemon.evs["atk"] == 252
+        assert sample_pokemon.add_evs("atk", 10) == 0  # Full
+
+    def test_add_evs_total_cap(self, sample_pokemon):
+        """EVs capped at 510 total."""
+        # Max out two stats (504 total)
+        sample_pokemon.add_evs("atk", 252)
+        sample_pokemon.add_evs("spe", 252)
+        assert sample_pokemon.remaining_evs == 6
+
+        # Try to add more than remaining
+        amount = sample_pokemon.add_evs("hp", 10)
+        assert amount == 6
+        assert sample_pokemon.evs["hp"] == 6
+        assert sample_pokemon.remaining_evs == 0
+
+    def test_invalid_stat(self, sample_pokemon):
+        """Adding to invalid stat returns 0."""
+        amount = sample_pokemon.add_evs("invalid", 10)
+        assert amount == 0
+
+
+class TestPokemonIVs:
+    """Tests for Pokemon IV system."""
+
+    def test_default_ivs(self, sample_pokemon):
+        """IVs default to 0."""
+        assert sum(sample_pokemon.ivs.values()) == 0
+
+    def test_assign_ivs(self, sample_pokemon):
+        """Assign IVs randomizes values."""
+        sample_pokemon.assign_ivs()
+        # Statistically unlikely all will be 0, but possible.
+        # Check bounds instead.
+        for stat in sample_pokemon.ivs:
+            val = sample_pokemon.ivs[stat]
+            assert 0 <= val <= 31
+
+
 class TestPokedexEntry:
     """Tests for PokedexEntry model."""
 

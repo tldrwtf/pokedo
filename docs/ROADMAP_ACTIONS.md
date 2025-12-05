@@ -2,9 +2,9 @@
 
 1. EV/IV core
 
-- Add `stat_affinity` to `pokedo/core/task.py`
-- Add `evs` and `ivs` JSON fields to `pokedo/core/pokemon.py`
-- Implement `add_evs()` helpers + unit tests
+- [x] Add `stat_affinity` to `pokedo/core/task.py`
+- [x] Add `evs` and `ivs` JSON fields to `pokedo/core/pokemon.py`
+- [x] Implement `add_evs()` helpers + unit tests
 
 2. Trainer Classes
 

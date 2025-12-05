@@ -135,3 +135,27 @@ class Task(BaseModel):
             TaskCategory.CREATIVE: ["fairy", "dragon", "ice"],
         }
         return affinities[self.category]
+
+    @property
+    def stat_affinity(self) -> str:
+        """Get the stat affinity for this task category."""
+        affinities = {
+            TaskCategory.WORK: "spa",  # Special Attack
+            TaskCategory.EXERCISE: "atk",  # Attack
+            TaskCategory.LEARNING: "spd",  # Special Defense
+            TaskCategory.HEALTH: "hp",  # HP
+            TaskCategory.PERSONAL: "def",  # Defense
+            TaskCategory.CREATIVE: "spe",  # Speed
+        }
+        return affinities[self.category]
+
+    @property
+    def ev_yield(self) -> int:
+        """Get EV yield based on task difficulty."""
+        yields = {
+            TaskDifficulty.EASY: 1,
+            TaskDifficulty.MEDIUM: 2,
+            TaskDifficulty.HARD: 4,
+            TaskDifficulty.EPIC: 8,
+        }
+        return yields[self.difficulty]

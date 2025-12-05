@@ -1,5 +1,6 @@
 """Pokemon model and related logic."""
 
+import random
 from datetime import datetime
 from enum import Enum
 
@@ -33,6 +34,12 @@ class Pokemon(BaseModel):
     level: int = 1
     xp: int = 0
     happiness: int = 50  # 0-255
+    evs: dict[str, int] = Field(
+        default_factory=lambda: {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
+    )
+    ivs: dict[str, int] = Field(
+        default_factory=lambda: {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
+    )
 
     # Catch info
     caught_at: datetime = Field(default_factory=datetime.now)
@@ -64,6 +71,42 @@ class Pokemon(BaseModel):
         if self.type2:
             return f"{self.type1.capitalize()}/{self.type2.capitalize()}"
         return self.type1.capitalize()
+
+    @property
+    def remaining_evs(self) -> int:
+        """Calculate remaining EV points (max 510 total)."""
+        return 510 - sum(self.evs.values())
+
+    def add_evs(self, stat: str, amount: int) -> int:
+        """
+        Add EVs to a stat, respecting caps.
+        Returns the actual amount added.
+        """
+        if stat not in self.evs:
+            return 0
+
+        # Check global cap (510)
+        amount = min(amount, self.remaining_evs)
+        if amount <= 0:
+            return 0
+
+        # Check per-stat cap (252)
+        current_val = self.evs[stat]
+        space_in_stat = 252 - current_val
+        amount = min(amount, space_in_stat)
+
+        if amount > 0:
+            self.evs[stat] += amount
+            return amount
+        return 0
+
+    def assign_ivs(self) -> None:
+        """Randomize IVs (0-31) for all stats."""
+        # Only assign if they look uninitialized (all 0)
+        # Use a flag or just overwrite? Spec says "at capture".
+        # We'll overwrite to ensure randomness when called.
+        for stat in self.ivs:
+            self.ivs[stat] = random.randint(0, 31)
 
     def gain_xp(self, amount: int) -> bool:
         """Add XP to Pokemon, returns True if leveled up."""
