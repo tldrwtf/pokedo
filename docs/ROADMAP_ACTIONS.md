@@ -8,21 +8,21 @@
 
 2. Trainer Classes
 
-- Add `TrainerClass` enum and model
-- Add CLI commands to choose class
+- [x] Add `TrainerClass` enum and model
+- [x] Add CLI commands to choose class
 
 3. Sync API skeleton
 
-- Add FastAPI `pokedo/server.py` and Docker compose
-- Add tests for `/sync` endpoint
+- [x] Add FastAPI `pokedo/server.py` and Docker compose
+- [x] Add tests for `/sync` endpoint (and auth)
 
 4. Developer ergonomics
 
-- Add `docs/GETTING_STARTED.md`
-- Add examples in `tools/` and small integration tests
+- [x] Add `docs/GETTING_STARTED.md`
+- [x] Add examples in `tools/` and small integration tests
 
 Suggested next issues (small, PR-sized):
 
-- `docs/EV_IV_SPEC.md` improvements and examples
-- `tools/cli_example.py` convert to use repo's models
-- Add `DATABASE_URL` env handling in `pokedo/data/database.py`
+- [x] `docs/EV_IV_SPEC.md` improvements and examples
+- [x] `tools/cli_example.py` convert to use repo's models
+- [x] Add `DATABASE_URL` env handling in `pokedo/data/database.py`

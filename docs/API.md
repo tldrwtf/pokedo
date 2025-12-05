@@ -83,7 +83,14 @@ class Task(BaseModel):
 
     def get_type_affinity(self) -> list[str]:
         """Get boosted Pokemon types for this category."""
-```
+
+    @property
+    def stat_affinity(self) -> str:
+        """Get the stat affinity for this task category."""
+
+    @property
+    def ev_yield(self) -> int:
+        """Get EV yield based on task difficulty."""
 
 ---
 
@@ -117,6 +124,8 @@ class Pokemon(BaseModel):
     level: int = 1
     xp: int = 0
     happiness: int = 50
+    evs: dict[str, int] = Field(default_factory=dict)
+    ivs: dict[str, int] = Field(default_factory=dict)
     caught_at: datetime = Field(default_factory=datetime.now)
     is_shiny: bool = False
     catch_location: str | None = None
@@ -131,6 +140,19 @@ class Pokemon(BaseModel):
     @property
     def display_name(self) -> str:
         """Get display name (nickname or species name)."""
+
+    @property
+    def remaining_evs(self) -> int:
+        """Calculate remaining EV points (max 510 total)."""
+
+    def add_evs(self, stat: str, amount: int) -> int:
+        """
+        Add EVs to a stat, respecting caps (252 per stat, 510 total).
+        Returns actual amount added.
+        """
+
+    def assign_ivs(self) -> None:
+        """Randomize IVs (0-31) for all stats."""
 
     @property
     def xp_to_next_level(self) -> int:
@@ -826,6 +848,46 @@ class RewardSystem:
                 'badges_earned': list[TrainerBadge]
             }
         """
+
+---
+
+## Server API
+
+### Authentication (`pokedo/core/auth.py`)
+
+```python
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against a hash."""
+
+def get_password_hash(password: str) -> str:
+    """Hash a password."""
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create a JWT access token."""
+```
+
+### Endpoints (`pokedo/server.py`)
+
+| Method | Path | Description | Auth Required |
+|--------|------|-------------|---------------|
+| POST | `/register` | Register a new user. | No |
+| POST | `/token` | Login and get access token. | No |
+| GET | `/users/me` | Get current user profile. | Yes |
+| POST | `/sync` | Sync local changes to server. | Yes |
+
+#### Models
+
+```python
+class User(BaseModel):
+    username: str
+    email: str | None = None
+    full_name: str | None = None
+    disabled: bool | None = None
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+```
 ```
 
 ---

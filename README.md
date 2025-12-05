@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.1.0 | **License:** MIT | **Python:** 3.10+
+**Version:** 0.2.0 | **License:** MIT | **Python:** 3.10+
 
 ## Table of Contents
 
@@ -10,6 +10,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
+- [Server Usage (Optional)](#server-usage-optional)
 - [How It Works](#how-it-works)
 - [Data Storage](#data-storage)
 - [Development](#development)
@@ -29,6 +30,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Catch Pokemon by completing tasks
 - **All 1025 Pokemon** from Gen 1 (Kanto) through Gen 9 (Paldea)
 - Pokemon rarity based on task difficulty
+- Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training (Implemented)
 - Shiny Pokemon (rare variants with boosted rates from streaks)
 - Legendary, Mythical, Pseudo-Legendary, and Ultra Beast encounters
 - Paradox Pokemon from Scarlet/Violet
@@ -47,6 +49,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 
 ### Progression
 - Trainer levels and XP
+- **Trainer Classes** to specialize your journey (e.g., Ace Trainer, Hiker, Scientist). Choose your class via `pokedo stats set-class`.
 - Daily streaks with milestone rewards
 - Achievement badges
 - Inventory system (Pokeballs, evolution items)
@@ -188,6 +191,33 @@ pokedo stats inventory
 pokedo stats history --days 14
 ```
 
+### Server Usage (Optional)
+
+PokeDo is developing a FastAPI server to enable cloud synchronization and multi-user features. You can run the development server and test its authentication endpoints.
+
+1.  **Run the Server:**
+    ```bash
+    uvicorn pokedo.server:app --reload --port 8000
+    ```
+    (Ensure you have installed development dependencies: `pip install -e ".[dev]"`)
+
+2.  **Register a User:**
+    ```bash
+    curl -X POST http://localhost:8000/register -H "Content-Type: application/json" -d "{\"username\": \"testuser\", \"password\": \"testpassword\"}"
+    ```
+
+3.  **Login and Get an Access Token:**
+    ```bash
+    curl -X POST http://localhost:8000/token -F "username=testuser" -F "password=testpassword"
+    ```
+    This will return a JSON object containing your `access_token`.
+
+4.  **Access Protected Endpoints (e.g., /users/me or /sync):**
+    Replace `<YOUR_ACCESS_TOKEN>` with the token received from the login step.
+    ```bash
+    curl -X GET http://localhost:8000/users/me -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>"
+    ```
+
 ## How It Works
 
 ### Catching Pokemon
@@ -239,6 +269,50 @@ When you complete a task, there's a chance to encounter a Pokemon:
 - **Meditation**: Psychic/Fairy bonus
 - **Journaling**: Friendship evolution bonus
 
+### Type Affinities
+
+Task categories influence Pokemon type encounter probabilities:
+
+| Category | Boosted Types |
+|----------|---------------|
+| Work | Steel, Electric, Normal |
+| Exercise | Fighting, Fire, Rock |
+| Learning | Psychic, Ghost, Dark |
+| Personal | Normal, Fairy, Flying |
+| Health | Grass, Water, Poison |
+| Creative | Fairy, Dragon, Ice |
+
+Wellbeing actions also affect type encounters:
+- **Hydration goal (8 glasses)**: Water-type bonus
+- **Meditation**: Psychic/Fairy bonus
+- **Exercise**: Fighting-type bonus
+
+### EV/IV System (Implemented)
+This system introduces deeper RPG mechanics for training your Pokemon's stats:
+
+*   **IVs (Individual Values):** Represents a Pokemon's innate potential (0-31 per stat), assigned randomly at capture.
+*   **EVs (Effort Values):** Training points gained by completing tasks (max 510 total, 252 per stat).
+
+**Task Categories influence which stats are trained:**
+
+| Task Category | Stat Trained |
+|---------------|--------------|
+| Work          | Special Attack |
+| Exercise      | Attack       |
+| Learning      | Special Defense |
+| Health        | HP           |
+| Personal      | Defense      |
+| Creative      | Speed        |
+
+**Task Difficulty determines the EV yield:**
+
+| Difficulty | EV Yield |
+|------------|----------|
+| Easy       | 1 EV     |
+| Medium     | 2 EVs    |
+| Hard       | 4 EVs    |
+| Epic       | 8 EVs    |
+
 ## Data Storage
 
 All data is stored locally in `~/.pokedo/`:
@@ -247,6 +321,8 @@ All data is stored locally in `~/.pokedo/`:
 - `cache/sprites/`: Downloaded Pokemon sprites
 
 ## Development
+
+The project includes a FastAPI server (`pokedo/server.py`) for future cloud synchronization and currently provides **user authentication (registration/login with JWT)**.
 
 ```bash
 # Install with dev dependencies

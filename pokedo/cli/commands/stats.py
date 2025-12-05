@@ -12,11 +12,24 @@ from pokedo.cli.ui.displays import (
     display_streak_info,
     display_trainer_card,
 )
-from pokedo.core.trainer import AVAILABLE_BADGES
+from pokedo.core.trainer import AVAILABLE_BADGES, TrainerClass
 from pokedo.data.database import db
 
 app = typer.Typer(help="Statistics and profile commands")
 console = Console()
+
+
+@app.command("set-class")
+def set_trainer_class(
+    trainer_class: TrainerClass = typer.Argument(..., help="Choose your trainer class"),
+) -> None:
+    """Set your trainer class (Ace Trainer, Hiker, etc)."""
+    trainer = db.get_or_create_trainer()
+    trainer.trainer_class = trainer_class
+    db.save_trainer(trainer)
+    console.print(
+        f"[green]Trainer class updated to: {trainer_class.value.replace('_', ' ').title()}![/green]"
+    )
 
 
 @app.command("profile")

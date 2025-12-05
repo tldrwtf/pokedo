@@ -21,7 +21,9 @@ from sqlmodel import Field, SQLModel, create_engine, Session, select
 from sqlalchemy import Column
 from sqlalchemy.sql.sqltypes import JSON as JSONType
 
-DATABASE_URL = os.getenv("POKEDO_DATABASE_URL", "sqlite:///pokedo.db")
+from pokedo.utils.config import config
+
+DATABASE_URL = os.getenv("POKEDO_DATABASE_URL", f"sqlite:///{config.db_path}")
 engine = create_engine(DATABASE_URL, echo=False)
 
 

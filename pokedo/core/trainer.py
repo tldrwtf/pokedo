@@ -1,10 +1,24 @@
 """Trainer (player) profile model."""
 
 from datetime import date, datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
 from pokedo.utils.helpers import calculate_level, xp_to_next_level
+
+
+class TrainerClass(str, Enum):
+    """Trainer archetype classes."""
+
+    ACE_TRAINER = "ace_trainer"
+    HIKER = "hiker"
+    SCIENTIST = "scientist"
+    BLACK_BELT = "black_belt"
+    PSYCHIC = "psychic"
+    SWIMMER = "swimmer"
+    BREEDER = "breeder"
+    COORDINATOR = "coordinator"
 
 
 class TrainerBadge(BaseModel):
@@ -62,6 +76,7 @@ class Trainer(BaseModel):
 
     id: int | None = None
     name: str = "Trainer"
+    trainer_class: TrainerClass = TrainerClass.ACE_TRAINER
     created_at: datetime = Field(default_factory=datetime.now)
 
     # Experience and level

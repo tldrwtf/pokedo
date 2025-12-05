@@ -25,8 +25,15 @@ python -m pokedo.data.sync queue "task-123" task CREATE "{\"title\": \"Write doc
 Push to server:
 
 ```cmd
+# Requires valid JWT token (not yet implemented in CLI push command)
 python -m pokedo.data.sync push http://localhost:8000
 ```
+
+## Authentication
+
+The server now requires authentication for the `/sync` endpoint.
+1. Obtain a token via `POST /token`
+2. Send token in `Authorization: Bearer <token>` header
 
 ## Notes
 

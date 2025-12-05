@@ -95,6 +95,7 @@ class EncounterResult:
         pokemon: Pokemon | None = None,
         is_shiny: bool = False,
         xp_earned: int = 0,
+        evs_earned: dict[str, int] | None = None,
         level_up: bool = False,
         new_level: int = 0,
         streak_continued: bool = True,
@@ -107,6 +108,7 @@ class EncounterResult:
         self.pokemon = pokemon
         self.is_shiny = is_shiny
         self.xp_earned = xp_earned
+        self.evs_earned = evs_earned
         self.level_up = level_up
         self.new_level = new_level
         self.streak_continued = streak_continued
@@ -168,6 +170,19 @@ class RewardEngine:
             result.level_up = True
             result.new_level = new_level
 
+        # Award EVs to active Pokemon
+        from pokedo.data.database import db
+
+        active_team = db.get_active_team()
+        if active_team:
+            active_pokemon = active_team[0]  # Lead Pokemon gets EVs
+            stat = task.stat_affinity
+            amount = task.ev_yield
+            actual_added = active_pokemon.add_evs(stat, amount)
+            if actual_added > 0:
+                db.save_pokemon(active_pokemon)
+                result.evs_earned = {"pokemon": active_pokemon.display_name, "stat": stat, "amount": actual_added}
+
         # Update streak
         today = date.today()
         streak_continued, streak_count = trainer.update_streak(today)
@@ -198,6 +213,7 @@ class RewardEngine:
             )
 
             if pokemon:
+                pokemon.assign_ivs()
                 # Attempt catch
                 catch_rate = self._calculate_catch_rate(rarity, trainer)
                 if random.random() < catch_rate:

@@ -368,3 +368,52 @@ class TestGenerationFilter:
 
         # Should have Pokemon from later gens too
         assert any(pid > 800 for pid in all_ids)
+
+
+class TestEVRewards:
+    """Tests for EV awarding logic."""
+
+    @pytest.fixture
+    def engine(self):
+        return RewardEngine()
+
+    def test_ev_award_active_pokemon(self, engine, sample_task, new_trainer, sample_pokemon, monkeypatch):
+        """Task completion awards EVs to active Pokemon."""
+        from pokedo.data.database import db
+
+        # Mock DB calls
+        active_team = [sample_pokemon]
+        saved_pokemon = []
+
+        def mock_get_active_team():
+            return active_team
+
+        def mock_save_pokemon(p):
+            saved_pokemon.append(p)
+            return p
+
+        monkeypatch.setattr(db, "get_active_team", mock_get_active_team)
+        monkeypatch.setattr(db, "save_pokemon", mock_save_pokemon)
+
+        # Process task
+        result = engine.process_task_completion(sample_task, new_trainer)
+
+        # Verify EVs awarded
+        stat = sample_task.stat_affinity
+        amount = sample_task.ev_yield
+        assert sample_pokemon.evs[stat] == amount
+        assert len(saved_pokemon) == 1
+        assert result.evs_earned == {"pokemon": sample_pokemon.display_name, "stat": stat, "amount": amount}
+
+    def test_no_evs_without_active_team(self, engine, sample_task, new_trainer, monkeypatch):
+        """No EVs awarded if no active team."""
+        from pokedo.data.database import db
+
+        monkeypatch.setattr(db, "get_active_team", lambda: [])
+        saved_pokemon = []
+        monkeypatch.setattr(db, "save_pokemon", lambda p: saved_pokemon.append(p))
+
+        result = engine.process_task_completion(sample_task, new_trainer)
+
+        assert result.evs_earned is None
+        assert len(saved_pokemon) == 0

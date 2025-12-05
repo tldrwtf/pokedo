@@ -28,6 +28,8 @@ PokeDo is a gamified task manager that combines productivity tracking with Pokem
 - Rich (Terminal UI)
 - Pydantic (Data validation)
 - SQLite (Local storage)
+- FastAPI (Server & Sync)
+- JWT/Bcrypt (Authentication)
 - httpx (Async HTTP client)
 
 ---
@@ -40,15 +42,9 @@ pokedo/
 ├── __main__.py           # Entry point for `python -m pokedo`
 ├── cli/                  # Presentation Layer
 │   ├── app.py            # Main Typer application
-│   ├── commands/         # Command implementations
-│   │   ├── tasks.py      # Task management commands
-│   │   ├── pokemon.py    # Pokemon management commands
-│   │   ├── wellbeing.py  # Wellbeing tracking commands
-│   │   └── stats.py      # Statistics and profile commands
-│   └── ui/               # UI components
-│       ├── displays.py   # Rich display components
-│       └── menus.py      # Interactive menu components
+│   └── ...
 ├── core/                 # Business Logic Layer
+│   ├── auth.py           # NEW: Authentication logic
 │   ├── task.py           # Task model and enums
 │   ├── trainer.py        # Trainer model and progression
 │   ├── pokemon.py        # Pokemon and Pokedex models
@@ -57,6 +53,7 @@ pokedo/
 ├── data/                 # Data Access Layer
 │   ├── database.py       # SQLite operations
 │   └── pokeapi.py        # PokeAPI client
+├── server.py             # NEW: FastAPI server entry point
 └── utils/                # Utilities
     ├── config.py         # Configuration management
     └── helpers.py        # Helper functions
@@ -85,9 +82,22 @@ The CLI layer handles all user interaction through the Typer framework.
 - `displays.py`: Tables, panels, progress bars, ASCII art
 - `menus.py`: Interactive selection menus
 
+### Server Layer (`server.py`)
+
+Handles centralized operations and synchronization.
+
+**`server.py`** - FastAPI Application
+- User registration and authentication endpoints (`/register`, `/token`)
+- Protected synchronization endpoint (`/sync`)
+- In-memory user store (prototype)
+
 ### Business Logic Layer (`core/`)
 
 The core layer contains domain models and game logic.
+
+**`auth.py`** - Authentication
+- Password hashing (Bcrypt)
+- JWT Token generation and verification
 
 **`task.py`** - Task Management
 ```python
@@ -98,8 +108,7 @@ class TaskDifficulty(Enum):
     EASY, MEDIUM, HARD, EPIC
 
 class Task(BaseModel):
-    # Properties: is_overdue, xp_reward
-    # Methods: get_pokemon_rarity_weights(), get_type_affinity()
+    # Properties: is_overdue, xp_reward, stat_affinity, ev_yield
 ```
 
 **`pokemon.py`** - Pokemon System
@@ -109,9 +118,7 @@ class PokemonRarity(Enum):
 
 class Pokemon(BaseModel):
     # Evolution tracking, XP system, happiness
-
-class PokedexEntry(BaseModel):
-    # Seen/caught tracking, shiny status
+    # EV/IV stats (new)
 ```
 
 **`trainer.py`** - Player Progression

@@ -1,6 +1,7 @@
 """SQLite database operations for PokeDo."""
 
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import date, datetime
@@ -8,7 +9,7 @@ from pathlib import Path
 
 from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity
 from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
-from pokedo.core.trainer import Streak, Trainer
+from pokedo.core.trainer import Streak, Trainer, TrainerClass
 from pokedo.core.wellbeing import (
     ExerciseEntry,
     ExerciseType,
@@ -26,6 +27,11 @@ class Database:
     """SQLite database manager."""
 
     def __init__(self, db_path: Path | None = None):
+        if db_path is None:
+            env_url = os.getenv("POKEDO_DATABASE_URL")
+            if env_url and env_url.startswith("sqlite:///"):
+                db_path = Path(env_url.replace("sqlite:///", ""))
+
         self.db_path = db_path or config.db_path
         config.ensure_dirs()
         self._init_db()
@@ -120,6 +126,7 @@ class Database:
                 CREATE TABLE IF NOT EXISTS trainer (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT DEFAULT 'Trainer',
+                    trainer_class TEXT DEFAULT 'ace_trainer',
                     created_at TEXT NOT NULL,
                     total_xp INTEGER DEFAULT 0,
                     tasks_completed INTEGER DEFAULT 0,
@@ -141,6 +148,12 @@ class Database:
                     last_active_date TEXT
                 )
             """)
+            
+            # Migration: Add trainer_class if missing
+            try:
+                cursor.execute("ALTER TABLE trainer ADD COLUMN trainer_class TEXT DEFAULT 'ace_trainer'")
+            except sqlite3.OperationalError:
+                pass  # Column likely exists
 
             # Wellbeing tables
             cursor.execute("""
@@ -524,12 +537,13 @@ class Database:
             trainer = Trainer(name=name)
             cursor.execute(
                 """
-                INSERT INTO trainer (name, created_at, total_xp, tasks_completed,
+                INSERT INTO trainer (name, trainer_class, created_at, total_xp, tasks_completed,
                     pokemon_caught, badges, inventory)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     trainer.name,
+                    trainer.trainer_class.value,
                     trainer.created_at.isoformat(),
                     trainer.total_xp,
                     trainer.tasks_completed,
@@ -553,7 +567,7 @@ class Database:
             cursor.execute(
                 """
                 UPDATE trainer SET
-                    name = ?, total_xp = ?, tasks_completed = ?, tasks_completed_today = ?,
+                    name = ?, trainer_class = ?, total_xp = ?, tasks_completed = ?, tasks_completed_today = ?,
                     pokemon_caught = ?, pokemon_released = ?, evolutions_triggered = ?,
                     pokedex_seen = ?, pokedex_caught = ?,
                     daily_streak_count = ?, daily_streak_best = ?, daily_streak_last_date = ?,
@@ -563,6 +577,7 @@ class Database:
             """,
                 (
                     trainer.name,
+                    trainer.trainer_class.value,
                     trainer.total_xp,
                     trainer.tasks_completed,
                     trainer.tasks_completed_today,
@@ -619,6 +634,7 @@ class Database:
         return Trainer(
             id=row["id"],
             name=row["name"],
+            trainer_class=TrainerClass(row["trainer_class"]) if "trainer_class" in row.keys() else TrainerClass.ACE_TRAINER,
             created_at=datetime.fromisoformat(row["created_at"]),
             total_xp=row["total_xp"],
             tasks_completed=row["tasks_completed"],
