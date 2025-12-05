@@ -29,6 +29,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Catch Pokemon by completing tasks
 - **All 1025 Pokemon** from Gen 1 (Kanto) through Gen 9 (Paldea)
 - Pokemon rarity based on task difficulty
+- Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training (in progress)
 - Shiny Pokemon (rare variants with boosted rates from streaks)
 - Legendary, Mythical, Pseudo-Legendary, and Ultra Beast encounters
 - Paradox Pokemon from Scarlet/Violet
@@ -239,6 +240,50 @@ When you complete a task, there's a chance to encounter a Pokemon:
 - **Meditation**: Psychic/Fairy bonus
 - **Journaling**: Friendship evolution bonus
 
+### Type Affinities
+
+Task categories influence Pokemon type encounter probabilities:
+
+| Category | Boosted Types |
+|----------|---------------|
+| Work | Steel, Electric, Normal |
+| Exercise | Fighting, Fire, Rock |
+| Learning | Psychic, Ghost, Dark |
+| Personal | Normal, Fairy, Flying |
+| Health | Grass, Water, Poison |
+| Creative | Fairy, Dragon, Ice |
+
+Wellbeing actions also affect type encounters:
+- **Hydration goal (8 glasses)**: Water-type bonus
+- **Meditation**: Psychic/Fairy bonus
+- **Exercise**: Fighting-type bonus
+
+### EV/IV System (In Progress)
+This system introduces deeper RPG mechanics for training your Pokemon's stats:
+
+*   **IVs (Individual Values):** Represents a Pokemon's innate potential (0-31 per stat), assigned randomly at capture.
+*   **EVs (Effort Values):** Training points gained by completing tasks (max 510 total, 252 per stat).
+
+**Task Categories influence which stats are trained:**
+
+| Task Category | Stat Trained |
+|---------------|--------------|
+| Work          | Special Attack |
+| Exercise      | Attack       |
+| Learning      | Special Defense |
+| Health        | HP           |
+| Personal      | Defense      |
+| Creative      | Speed        |
+
+**Task Difficulty determines the EV yield:**
+
+| Difficulty | EV Yield |
+|------------|----------|
+| Easy       | 1 EV     |
+| Medium     | 2 EVs    |
+| Hard       | 4 EVs    |
+| Epic       | 8 EVs    |
+
 ## Data Storage
 
 All data is stored locally in `~/.pokedo/`:
@@ -247,6 +292,8 @@ All data is stored locally in `~/.pokedo/`:
 - `cache/sprites/`: Downloaded Pokemon sprites
 
 ## Development
+
+The project is actively being developed to include a FastAPI server for cloud synchronization and enhanced RPG mechanics.
 
 ```bash
 # Install with dev dependencies
