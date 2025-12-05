@@ -186,6 +186,7 @@ def display_trainer_card(trainer: Trainer) -> None:
     xp_current, xp_needed = trainer.xp_progress
 
     content = f"""[bold]{trainer.name}[/bold]
+[dim]Class:[/dim] {trainer.trainer_class.value.replace('_', ' ').title()}
 
 [dim]Level:[/dim] {trainer.level}
 [dim]XP:[/dim] {xp_current}/{xp_needed} to next level

@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.1.1 | **License:** MIT | **Python:** 3.10+
+**Version:** 0.2.0 | **License:** MIT | **Python:** 3.10+
 
 ## Table of Contents
 
@@ -10,6 +10,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
+- [Server Usage (Optional)](#server-usage-optional)
 - [How It Works](#how-it-works)
 - [Data Storage](#data-storage)
 - [Development](#development)
@@ -20,12 +21,14 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 ## Features
 
 ### Task Management
+
 - Create tasks with categories (work, exercise, learning, personal, health, creative)
 - Set difficulty levels (easy, medium, hard, epic) that affect XP and Pokemon rarity
 - Recurring tasks (daily, weekly, monthly)
 - Task priorities and due dates
 
 ### Pokemon System
+
 - Catch Pokemon by completing tasks
 - **All 1025 Pokemon** from Gen 1 (Kanto) through Gen 9 (Paldea)
 - Pokemon rarity based on task difficulty
@@ -39,6 +42,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Nickname your Pokemon
 
 ### Wellbeing Tracking
+
 - Mood logging (1-5 scale)
 - Exercise tracking with type detection
 - Sleep logging with catch rate modifiers
@@ -47,7 +51,9 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Gratitude journaling (friendship bonuses)
 
 ### Progression
+
 - Trainer levels and XP
+- **Trainer Classes** to specialize your journey (e.g., Ace Trainer, Hiker, Scientist). Choose your class via `pokedo stats set-class`.
 - Daily streaks with milestone rewards
 - Achievement badges
 - Inventory system (Pokeballs, evolution items)
@@ -94,6 +100,7 @@ pokedo
 ## Usage
 
 ### Initialize
+
 ```bash
 # Full initialization (all 1025 Pokemon - takes a few minutes first time)
 pokedo init --name "Ash"
@@ -106,6 +113,7 @@ pokedo init --name "Ash" --gen 9  # Paldea only
 ```
 
 ### Tasks
+
 ```bash
 # Add a task
 pokedo task add "Complete project report" --category work --difficulty hard --due tomorrow
@@ -124,6 +132,7 @@ pokedo task delete 1
 ```
 
 ### Pokemon
+
 ```bash
 # View your team
 pokedo team
@@ -152,6 +161,7 @@ pokedo pokemon release 10
 ```
 
 ### Wellbeing
+
 ```bash
 # Quick commands
 pokedo mood 4 --note "Feeling productive"
@@ -167,6 +177,7 @@ pokedo wellbeing today
 ```
 
 ### Stats & Profile
+
 ```bash
 # Dashboard
 pokedo
@@ -189,10 +200,44 @@ pokedo stats inventory
 pokedo stats history --days 14
 ```
 
+### Server Usage (Optional)
+
+PokeDo is developing a FastAPI server to enable cloud synchronization and multi-user features. You can run the development server and test its authentication endpoints.
+
+1.  **Run the Server:**
+
+    ```bash
+    uvicorn pokedo.server:app --reload --port 8000
+    ```
+
+    (Ensure you have installed development dependencies: `pip install -e ".[dev]"`)
+
+2.  **Register a User:**
+
+    ```bash
+    curl -X POST http://localhost:8000/register -H "Content-Type: application/json" -d "{\"username\": \"testuser\", \"password\": \"testpassword\"}"
+    ```
+
+3.  **Login and Get an Access Token:**
+
+    ```bash
+    curl -X POST http://localhost:8000/token -F "username=testuser" -F "password=testpassword"
+    ```
+
+    This will return a JSON object containing your `access_token`.
+
+4.  **Access Protected Endpoints (e.g., /users/me or /sync):**
+    Replace `<YOUR_ACCESS_TOKEN>` with the token received from the login step.
+    ```bash
+    curl -X GET http://localhost:8000/users/me -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>"
+    ```
+
 ## How It Works
 
 ### Catching Pokemon
+
 When you complete a task, there's a chance to encounter a Pokemon:
+
 - **Encounter Rate**: ~70% base, increases with difficulty and streaks
 - **Rarity**: Determined by task difficulty
   - Easy: Mostly common Pokemon
@@ -202,6 +247,7 @@ When you complete a task, there's a chance to encounter a Pokemon:
 - **Catch Rate**: Based on Pokemon rarity and trainer level
 
 ### Rarity Tiers
+
 - **Common** (60%): Early-route Pokemon from all generations
 - **Uncommon** (25%): Mid-evolution Pokemon, starters
 - **Rare** (10%): Final evolutions, Paradox Pokemon
@@ -210,6 +256,7 @@ When you complete a task, there's a chance to encounter a Pokemon:
 - **Mythical**: Mew, Celebi, Jirachi, Arceus, and more (special encounters only)
 
 ### Generation Support
+
 - **Gen 1 (Kanto)**: #001-151
 - **Gen 2 (Johto)**: #152-251
 - **Gen 3 (Hoenn)**: #252-386
@@ -221,11 +268,13 @@ When you complete a task, there's a chance to encounter a Pokemon:
 - **Gen 9 (Paldea)**: #906-1025
 
 ### Shiny Pokemon
+
 - Base rate: 1/100
 - Streak bonus: +0.5% per day of streak
 - Perfect week: Boosted shiny chance
 
 ### Streak Rewards
+
 - 3 days: Great Balls (better catch rate)
 - 7 days: Evolution Stone
 - 14 days: Ultra Balls
@@ -233,6 +282,7 @@ When you complete a task, there's a chance to encounter a Pokemon:
 - 100 days: Legendary Ticket
 
 ### Wellbeing Bonuses
+
 - **Good mood**: Pokemon happiness boost
 - **Exercise**: Type-specific encounter bonuses
 - **Good sleep**: Catch rate boost
@@ -259,25 +309,27 @@ Wellbeing actions also affect type encounters:
 - **Exercise**: Fighting-type bonus
 
 ### EV/IV System (In Progress)
+
 This system introduces deeper RPG mechanics for training your Pokemon's stats:
 
-*   **IVs (Individual Values):** Represents a Pokemon's innate potential (0-31 per stat), assigned randomly at capture.
-*   **EVs (Effort Values):** Training points gained by completing tasks (max 510 total, 252 per stat).
+- **IVs (Individual Values):** Represents a Pokemon's innate potential (0-31 per stat), assigned randomly at capture.
+- **EVs (Effort Values):** Training points gained by completing tasks (max 510 total, 252 per stat).
 
 **Task Categories influence which stats are trained:**
 
-| Task Category | Stat Trained |
-|---------------|--------------|
-| Work          | Special Attack |
-| Exercise      | Attack       |
+| Task Category | Stat Trained    |
+| ------------- | --------------- |
+| Work          | Special Attack  |
+| Exercise      | Attack          |
 | Learning      | Special Defense |
-| Health        | HP           |
-| Personal      | Defense      |
-| Creative      | Speed        |
+| Health        | HP              |
+| Personal      | Defense         |
+| Creative      | Speed           |
 
 **Task Difficulty determines the EV yield:**
 
 | Difficulty | EV Yield |
+| ---------- | -------- |
 |------------|----------|
 | Easy       | 1 EV     |
 | Medium     | 2 EVs    |
@@ -287,13 +339,14 @@ This system introduces deeper RPG mechanics for training your Pokemon's stats:
 ## Data Storage
 
 All data is stored locally in `~/.pokedo/`:
+
 - `pokedo.db`: SQLite database
 - `cache/`: Cached PokeAPI data
 - `cache/sprites/`: Downloaded Pokemon sprites
 
 ## Development
 
-The project is actively being developed to include a FastAPI server for cloud synchronization and enhanced RPG mechanics.
+The project includes a FastAPI server (`pokedo/server.py`) for future cloud synchronization and currently provides **user authentication (registration/login with JWT)**.
 
 ```bash
 # Install with dev dependencies
@@ -310,6 +363,7 @@ pytest tests/test_tasks.py
 ```
 
 For more development information, see:
+
 - [Architecture Documentation](docs/ARCHITECTURE.md) - System design and code structure
 - [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute to PokeDo
 - [API Reference](docs/API.md) - Internal API documentation
@@ -321,25 +375,30 @@ For more development information, see:
 ### Common Issues
 
 **"Command not found: pokedo"**
+
 - Ensure you installed with `pip install -e .`
 - Check that your virtual environment is activated
 - Try running with `python -m pokedo` instead
 
 **"Database error" on first run**
+
 - Run `pokedo init --name "YourName"` to initialize the database
 - Check write permissions in your home directory
 
 **Slow initialization**
+
 - Full initialization downloads data for 1025 Pokemon
 - Use `--quick` flag for Gen 1 only (151 Pokemon)
 - Use `--gen N` to initialize a specific generation
 
 **Pokemon sprites not displaying**
+
 - Sprites require terminal with image support (iTerm2, Kitty, etc.)
 - Text fallback is used in unsupported terminals
 - Check `~/.pokedo/cache/sprites/` for cached images
 
 **API rate limiting**
+
 - PokeAPI is free and has generous limits
 - Data is cached locally after first fetch
 - Clear cache: delete `~/.pokedo/cache/` folder

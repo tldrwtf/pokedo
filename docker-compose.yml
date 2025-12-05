@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: pokedo
+      POSTGRES_PASSWORD: pokedopass
+      POSTGRES_DB: pokedo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pokedo_pgdata:/var/lib/postgresql/data
+
+volumes:
+  pokedo_pgdata:
