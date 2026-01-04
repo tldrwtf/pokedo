@@ -88,6 +88,8 @@ class Database:
                     level INTEGER DEFAULT 1,
                     xp INTEGER DEFAULT 0,
                     happiness INTEGER DEFAULT 50,
+                    evs TEXT DEFAULT '{}',
+                    ivs TEXT DEFAULT '{}',
                     caught_at TEXT NOT NULL,
                     is_shiny INTEGER DEFAULT 0,
                     catch_location TEXT,
@@ -156,6 +158,13 @@ class Database:
                 )
             except sqlite3.OperationalError:
                 pass  # Column likely exists
+
+            # Migration: Add EV/IV columns if missing on existing pokemon table
+            for column in ("evs", "ivs"):
+                try:
+                    cursor.execute(f"ALTER TABLE pokemon ADD COLUMN {column} TEXT DEFAULT '{{}}'")
+                except sqlite3.OperationalError:
+                    pass  # Column likely exists
 
             # Wellbeing tables
             cursor.execute("""
@@ -272,7 +281,17 @@ class Database:
                 query += " AND is_completed = 0"
             if not include_archived:
                 query += " AND is_archived = 0"
-            query += " ORDER BY due_date ASC, priority DESC"
+            query += """
+                ORDER BY
+                    due_date ASC,
+                    CASE priority
+                        WHEN 'urgent' THEN 4
+                        WHEN 'high' THEN 3
+                        WHEN 'medium' THEN 2
+                        WHEN 'low' THEN 1
+                        ELSE 0
+                    END DESC
+            """
             cursor.execute(query)
             return [self._row_to_task(row) for row in cursor.fetchall()]
 
@@ -284,7 +303,14 @@ class Database:
                 """
                 SELECT * FROM tasks
                 WHERE due_date = ? AND is_archived = 0
-                ORDER BY priority DESC
+                ORDER BY
+                    CASE priority
+                        WHEN 'urgent' THEN 4
+                        WHEN 'high' THEN 3
+                        WHEN 'medium' THEN 2
+                        WHEN 'low' THEN 1
+                        ELSE 0
+                    END DESC
             """,
                 (target_date.isoformat(),),
             )
@@ -355,7 +381,7 @@ class Database:
                 cursor.execute(
                     """
                     UPDATE pokemon SET
-                        nickname = ?, level = ?, xp = ?, happiness = ?,
+                        nickname = ?, level = ?, xp = ?, happiness = ?, evs = ?, ivs = ?,
                         is_active = ?, is_favorite = ?, can_evolve = ?
                     WHERE id = ?
                 """,
@@ -364,6 +390,8 @@ class Database:
                         pokemon.level,
                         pokemon.xp,
                         pokemon.happiness,
+                        json.dumps(pokemon.evs),
+                        json.dumps(pokemon.ivs),
                         int(pokemon.is_active),
                         int(pokemon.is_favorite),
                         int(pokemon.can_evolve),
@@ -374,10 +402,10 @@ class Database:
                 cursor.execute(
                     """
                     INSERT INTO pokemon (pokedex_id, name, nickname, type1, type2,
-                        level, xp, happiness, caught_at, is_shiny, catch_location,
+                        level, xp, happiness, evs, ivs, caught_at, is_shiny, catch_location,
                         is_active, is_favorite, can_evolve, evolution_id,
                         evolution_level, evolution_method, sprite_url, sprite_path)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         pokemon.pokedex_id,
@@ -388,6 +416,8 @@ class Database:
                         pokemon.level,
                         pokemon.xp,
                         pokemon.happiness,
+                        json.dumps(pokemon.evs),
+                        json.dumps(pokemon.ivs),
                         pokemon.caught_at.isoformat(),
                         int(pokemon.is_shiny),
                         pokemon.catch_location,
@@ -446,6 +476,16 @@ class Database:
             level=row["level"],
             xp=row["xp"],
             happiness=row["happiness"],
+            evs=(
+                json.loads(row["evs"])
+                if "evs" in row.keys() and row["evs"]
+                else {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
+            ),
+            ivs=(
+                json.loads(row["ivs"])
+                if "ivs" in row.keys() and row["ivs"]
+                else {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
+            ),
             caught_at=datetime.fromisoformat(row["caught_at"]),
             is_shiny=bool(row["is_shiny"]),
             catch_location=row["catch_location"],

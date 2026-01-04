@@ -59,3 +59,17 @@ def test_trainer_stats_roundtrip(isolated_db):
     assert reloaded.daily_streak.best_count == 6
     assert reloaded.inventory["pokeball"] == 5
     assert reloaded.inventory["great_ball"] == 1
+
+
+def test_pokemon_evs_and_ivs_persist(isolated_db, sample_pokemon):
+    """EVs and IVs should be stored and loaded intact."""
+    sample_pokemon.id = None  # Force insert path
+    sample_pokemon.evs["atk"] = 12
+    sample_pokemon.ivs["hp"] = 31
+
+    saved = isolated_db.save_pokemon(sample_pokemon)
+    loaded = isolated_db.get_pokemon(saved.id)
+
+    assert loaded is not None
+    assert loaded.evs["atk"] == 12
+    assert loaded.ivs["hp"] == 31

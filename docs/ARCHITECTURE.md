@@ -158,6 +158,7 @@ class DailyWellbeing:
 - Connection management
 - Schema initialization
 - Query builders
+- EV/IV columns (`pokemon.evs`, `pokemon.ivs`) store serialized stat distributions so training progress survives restarts without an extra join table.
 
 **`pokeapi.py`** - External API Client
 - Async HTTP client using `httpx`
@@ -490,6 +491,12 @@ Wellbeing actions also affect type encounters:
 - Exercise -> Fighting-type bonus
 
 ---
+
+### EV/IV Persistence & Affinity Backfill
+
+- **EV/IV persistence**: `pokemon.evs`/`pokemon.ivs` are saved as JSON blobs in the database, so the stat training that occurs every time a task completes is recorded once and carried over every time the Pokemon is loaded. This supports the standard 510/252 caps and keeps spreads deterministic across sessions (`pokedo/core/pokemon.py`, `pokedo/data/database.py`).
+- **Affinity backfill**: `_ensure_pokedex_entry_types` fetches missing Pokedex entries from the API before affinity filtering, enabling tasks and wellbeing logs to bias rarity pools even for unseen species. The reward engine caches the resulting entry so type-based filtering (`type_affinities` + wellbeing bonuses) reliably narrows the candidate pool (`pokedo/core/rewards.py`).
+
 
 ## Configuration
 

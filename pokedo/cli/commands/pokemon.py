@@ -1,5 +1,7 @@
 """Pokemon management CLI commands."""
 
+from datetime import datetime
+
 import typer
 from rich import box
 from rich.console import Console
@@ -298,18 +300,26 @@ def evolve_pokemon(pokemon_id: int = typer.Argument(..., help="Pokemon ID to evo
     db.delete_pokemon(pokemon_id)
     evolved = db.save_pokemon(evolved)
 
-    # Update Pokedex
+    # Update trainer and Pokedex
+    trainer = db.get_or_create_trainer()
+
     entry = db.get_pokedex_entry(evolved.pokedex_id)
     if entry:
+        newly_seen = not entry.is_seen
+        newly_caught = not entry.is_caught
         entry.is_seen = True
         entry.is_caught = True
         entry.times_caught += 1
         if evolved.is_shiny:
             entry.shiny_caught = True
+        if newly_seen:
+            trainer.pokedex_seen += 1
+        if newly_caught:
+            trainer.pokedex_caught += 1
+            if not entry.first_caught_at:
+                entry.first_caught_at = datetime.now()
         db.save_pokedex_entry(entry)
 
-    # Update trainer
-    trainer = db.get_or_create_trainer()
     trainer.evolutions_triggered += 1
     db.save_trainer(trainer)
 

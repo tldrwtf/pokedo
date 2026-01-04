@@ -308,6 +308,15 @@ Wellbeing actions also affect type encounters:
 - **Meditation**: Psychic/Fairy bonus
 - **Exercise**: Fighting-type bonus
 
+---
+
+## Recent Fixes & Behavior Notes
+
+- **EV/IV persistence**: Pokemon now persist their EV/IV dictionaries, so every completion permanently boosts the lead Pokémon’s stats (see `pokedo/data/database.py` and `pokedo/core/pokemon.py`).
+- **Affinity-aware encounters**: The reward engine filters rarity pools by task/wellbeing affinities, backfills missing type data (`_ensure_pokedex_entry_types`), and consumes the best available ball (master/ultra/great) for each attempt (`pokedo/core/rewards.py`).
+- **Pokedex tracking parity**: Every catch or evolution increments `pokedex_seen`/`pokedex_caught` (with first-caught timestamps and shiny flags), keeping trainer completion metrics in sync (`pokedo/cli/commands/tasks.py`, `pokedo/cli/commands/pokemon.py`).
+- **Priority ordering & streak sync**: Task listings now sort using explicit numeric weights, and streak best counters update immediately on first-day or resumed streaks (`pokedo/data/database.py`, `pokedo/core/trainer.py`).
+
 ### EV/IV System (In Progress)
 
 This system introduces deeper RPG mechanics for training your Pokemon's stats:

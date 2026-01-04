@@ -22,6 +22,7 @@ class TestStreak:
         assert result is True
         assert streak.current_count == 1
         assert streak.last_activity_date == date.today()
+        assert streak.best_count == 1
 
     def test_consecutive_day_increases_streak(self):
         """Activity on consecutive day increases streak."""

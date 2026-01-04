@@ -1,8 +1,9 @@
 """Tests for Reward and encounter system."""
 
 import pytest
+from types import SimpleNamespace
 
-from pokedo.core.pokemon import PokemonRarity
+from pokedo.core.pokemon import Pokemon, PokemonRarity
 from pokedo.core.rewards import POKEMON_BY_RARITY, EncounterResult, RewardEngine
 from pokedo.core.task import Task, TaskDifficulty
 from pokedo.core.trainer import Trainer
@@ -252,6 +253,37 @@ class TestCatchRate:
         assert rate <= 0.95
 
 
+class TestBallConsumption:
+    """Ensure balls are consumed during catch attempts."""
+
+    def test_catch_attempt_consumes_ball(self, sample_task, trainer_with_inventory, monkeypatch):
+        engine = RewardEngine()
+        trainer = trainer_with_inventory
+        trainer.inventory = {"great_ball": 1}
+
+        # Avoid DB/HTTP work
+        from pokedo.data import database
+
+        monkeypatch.setattr(database.db, "get_active_team", lambda: [])
+        monkeypatch.setattr(database.db, "save_pokemon", lambda p: p)
+        monkeypatch.setattr(database.db, "get_pokedex_entry", lambda *_: None)
+        monkeypatch.setattr(database.db, "save_pokedex_entry", lambda *_: None)
+        monkeypatch.setattr(engine, "_select_rarity", lambda *_, **__: PokemonRarity.COMMON)
+        monkeypatch.setattr(engine, "_select_pokemon", lambda *_, **__: 25)
+        monkeypatch.setattr(engine, "_check_shiny", lambda *_, **__: False)
+
+        caught_mon = Pokemon(pokedex_id=25, name="pikachu", type1="electric")
+        monkeypatch.setattr("pokedo.core.rewards.create_pokemon_sync", lambda *_, **__: caught_mon)
+
+        # Force encounter and catch
+        rolls = iter([0.0, 0.0])
+        monkeypatch.setattr("random.random", lambda: next(rolls))
+
+        engine.process_task_completion(sample_task, trainer)
+
+        assert trainer.inventory.get("great_ball", 0) == 0
+
+
 class TestStreakRewards:
     """Tests for streak milestone rewards."""
 
@@ -397,6 +429,11 @@ class TestEVRewards:
         monkeypatch.setattr(db, "get_active_team", mock_get_active_team)
         monkeypatch.setattr(db, "save_pokemon", mock_save_pokemon)
 
+        monkeypatch.setattr(
+            "pokedo.core.rewards._ensure_pokedex_entry_types",
+            lambda pid: SimpleNamespace(pokedex_id=pid, type1="electric", type2=None),
+        )
+
         # Process task
         result = engine.process_task_completion(sample_task, new_trainer)
 
@@ -418,6 +455,10 @@ class TestEVRewards:
         monkeypatch.setattr(db, "get_active_team", lambda: [])
         saved_pokemon = []
         monkeypatch.setattr(db, "save_pokemon", lambda p: saved_pokemon.append(p))
+        monkeypatch.setattr(
+            "pokedo.core.rewards._ensure_pokedex_entry_types",
+            lambda pid: SimpleNamespace(pokedex_id=pid, type1="electric", type2=None),
+        )
 
         result = engine.process_task_completion(sample_task, new_trainer)
 

@@ -14,6 +14,7 @@ from pokedo.data.pokeapi import (
     STARTER_FINAL_IDS,
     ULTRA_BEAST_IDS,
     create_pokemon_sync,
+    create_pokedex_entry_sync,
 )
 from pokedo.utils.config import config
 from pokedo.utils.helpers import weighted_random_choice
@@ -219,7 +220,10 @@ class RewardEngine:
             if pokemon:
                 pokemon.assign_ivs()
                 # Attempt catch
-                catch_rate = self._calculate_catch_rate(rarity, trainer)
+                ball_used = self._choose_ball(trainer)
+                catch_rate = self._calculate_catch_rate(rarity, trainer, ball_used)
+                if ball_used:
+                    trainer.use_item(ball_used)
                 if random.random() < catch_rate:
                     result.caught = True
                     result.pokemon = pokemon
@@ -288,6 +292,24 @@ class RewardEngine:
             # Fallback to common if rarity pool is empty
             available = pools[PokemonRarity.COMMON]
 
+        preferred_types = {t.lower() for t in type_affinity or []}
+        if bonus_types:
+            preferred_types.update(t.lower() for t in bonus_types)
+
+        if preferred_types:
+            filtered = []
+            for pid in available:
+                entry = _ensure_pokedex_entry_types(pid)
+                if not entry:
+                    continue
+                entry_types = {entry.type1.lower()}
+                if entry.type2:
+                    entry_types.add(entry.type2.lower())
+                if entry_types & preferred_types:
+                    filtered.append(pid)
+            if filtered:
+                available = filtered
+
         return random.choice(available)
 
     def _check_shiny(self, streak_count: int) -> bool:
@@ -297,8 +319,10 @@ class RewardEngine:
         shiny_chance = min(shiny_chance, 0.10)
         return random.random() < shiny_chance
 
-    def _calculate_catch_rate(self, rarity: PokemonRarity, trainer: Trainer) -> float:
-        """Calculate catch rate based on rarity and trainer level."""
+    def _calculate_catch_rate(
+        self, rarity: PokemonRarity, trainer: Trainer, ball_used: str | None = None
+    ) -> float:
+        """Calculate catch rate based on rarity, trainer level, and ball choice."""
         base_rates = {
             PokemonRarity.COMMON: 0.90,
             PokemonRarity.UNCOMMON: 0.75,
@@ -313,15 +337,31 @@ class RewardEngine:
         # Trainer level bonus (up to 20%)
         level_bonus = min(trainer.level * 0.02, 0.20)
 
-        # Inventory items could modify this
-        if "master_ball" in trainer.inventory and trainer.inventory["master_ball"] > 0:
-            return 1.0  # Guaranteed catch
-        if "ultra_ball" in trainer.inventory and trainer.inventory["ultra_ball"] > 0:
-            base += 0.20
-        elif "great_ball" in trainer.inventory and trainer.inventory["great_ball"] > 0:
-            base += 0.10
+        if ball_used is None:
+            # Preserve legacy behavior where items in inventory influenced catch rate.
+            if trainer.inventory.get("master_ball", 0) > 0:
+                ball_used = "master_ball"
+            elif trainer.inventory.get("ultra_ball", 0) > 0:
+                ball_used = "ultra_ball"
+            elif trainer.inventory.get("great_ball", 0) > 0:
+                ball_used = "great_ball"
 
-        return min(base + level_bonus, 0.95)
+        ball_bonus = 0.0
+        if ball_used == "master_ball":
+            return 1.0  # Guaranteed catch
+        if ball_used == "ultra_ball":
+            ball_bonus = 0.20
+        elif ball_used == "great_ball":
+            ball_bonus = 0.10
+
+        return min(base + level_bonus + ball_bonus, 0.95)
+
+    def _choose_ball(self, trainer: Trainer) -> str | None:
+        """Select the best available ball and consume it later."""
+        for item in ("master_ball", "ultra_ball", "great_ball"):
+            if trainer.inventory.get(item, 0) > 0:
+                return item
+        return None
 
     def _check_streak_rewards(self, streak_count: int) -> dict[str, int]:
         """Check if streak milestones award items."""
@@ -364,6 +404,34 @@ class RewardEngine:
         """Get count of Pokemon available in each rarity tier."""
         pools = self._get_filtered_pools()
         return {rarity.value: len(ids) for rarity, ids in pools.items()}
+
+
+# Global helper functions
+def _ensure_pokedex_entry_types(pokedex_id: int):
+    """Ensure we have type data for a Pokedex entry, fetching if necessary."""
+    from pokedo.data.database import db
+
+    entry = db.get_pokedex_entry(pokedex_id)
+    if entry and entry.type1:
+        return entry
+
+    fetched = create_pokedex_entry_sync(pokedex_id)
+    if not fetched:
+        return entry
+
+    if entry:
+        fetched.is_seen = entry.is_seen or fetched.is_seen
+        fetched.is_caught = entry.is_caught or fetched.is_caught
+        fetched.times_caught = entry.times_caught
+        if entry.first_caught_at:
+            fetched.first_caught_at = entry.first_caught_at
+        fetched.shiny_caught = entry.shiny_caught or fetched.shiny_caught
+        fetched.rarity = entry.rarity or fetched.rarity
+        fetched.evolves_from = entry.evolves_from or fetched.evolves_from
+        fetched.evolves_to = entry.evolves_to or fetched.evolves_to
+
+    db.save_pokedex_entry(fetched)
+    return fetched
 
 
 # Global reward engine instance (all generations)

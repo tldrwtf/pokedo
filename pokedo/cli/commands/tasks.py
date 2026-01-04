@@ -168,6 +168,8 @@ def complete_task(task_id: int = typer.Argument(..., help="Task ID to complete")
             # Update Pokedex
             entry = db.get_pokedex_entry(result.pokemon.pokedex_id)
             if entry:
+                if not entry.is_seen:
+                    trainer.pokedex_seen += 1
                 entry.is_seen = True
                 entry.is_caught = True
                 entry.times_caught += 1

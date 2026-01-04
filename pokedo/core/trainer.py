@@ -50,6 +50,7 @@ class Streak(BaseModel):
         if self.last_activity_date is None:
             self.current_count = 1
             self.last_activity_date = activity_date
+            self.best_count = max(self.best_count, self.current_count)
             return True
 
         days_diff = (activity_date - self.last_activity_date).days
@@ -68,6 +69,7 @@ class Streak(BaseModel):
             # Streak broken
             self.current_count = 1
             self.last_activity_date = activity_date
+            self.best_count = max(self.best_count, self.current_count)
             return False
 
 
