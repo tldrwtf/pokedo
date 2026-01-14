@@ -1,5 +1,6 @@
 """PokeAPI client for fetching Pokemon data and sprites."""
 
+import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
@@ -226,7 +227,23 @@ class PokeAPIClient:
         self._species_cache: dict[int, dict] = {}
         config.ensure_dirs()
 
-    async def get_pokemon(self, pokemon_id: int) -> dict | None:
+    async def _fetch_json(self, url: str, client: httpx.AsyncClient) -> dict | None:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError:
+            return None
+
+    async def _fetch_bytes(self, url: str, client: httpx.AsyncClient) -> bytes | None:
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.content
+        except httpx.HTTPError:
+            return None
+
+    async def get_pokemon(self, pokemon_id: int, client: httpx.AsyncClient | None = None) -> dict | None:
         """Fetch Pokemon data from API or cache."""
         if pokemon_id in self._pokemon_cache:
             return self._pokemon_cache[pokemon_id]
@@ -238,21 +255,22 @@ class PokeAPIClient:
                 self._pokemon_cache[pokemon_id] = data
                 return data
 
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(f"{self.base_url}/pokemon/{pokemon_id}")
-                response.raise_for_status()
-                data = response.json()
+        url = f"{self.base_url}/pokemon/{pokemon_id}"
+        if client is None:
+            async with httpx.AsyncClient() as client:
+                data = await self._fetch_json(url, client)
+        else:
+            data = await self._fetch_json(url, client)
+        if not data:
+            return None
 
-                # Cache the result
-                with open(cache_file, "w") as f:
-                    json.dump(data, f)
-                self._pokemon_cache[pokemon_id] = data
-                return data
-            except httpx.HTTPError:
-                return None
+        # Cache the result
+        with open(cache_file, "w") as f:
+            json.dump(data, f)
+        self._pokemon_cache[pokemon_id] = data
+        return data
 
-    async def get_species(self, pokemon_id: int) -> dict | None:
+    async def get_species(self, pokemon_id: int, client: httpx.AsyncClient | None = None) -> dict | None:
         """Fetch Pokemon species data (for evolution info)."""
         if pokemon_id in self._species_cache:
             return self._species_cache[pokemon_id]
@@ -264,30 +282,32 @@ class PokeAPIClient:
                 self._species_cache[pokemon_id] = data
                 return data
 
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(f"{self.base_url}/pokemon-species/{pokemon_id}")
-                response.raise_for_status()
-                data = response.json()
+        url = f"{self.base_url}/pokemon-species/{pokemon_id}"
+        if client is None:
+            async with httpx.AsyncClient() as client:
+                data = await self._fetch_json(url, client)
+        else:
+            data = await self._fetch_json(url, client)
+        if not data:
+            return None
 
-                with open(cache_file, "w") as f:
-                    json.dump(data, f)
-                self._species_cache[pokemon_id] = data
-                return data
-            except httpx.HTTPError:
-                return None
+        with open(cache_file, "w") as f:
+            json.dump(data, f)
+        self._species_cache[pokemon_id] = data
+        return data
 
-    async def get_evolution_chain(self, chain_url: str) -> dict | None:
+    async def get_evolution_chain(
+        self, chain_url: str, client: httpx.AsyncClient | None = None
+    ) -> dict | None:
         """Fetch evolution chain data."""
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(chain_url)
-                response.raise_for_status()
-                return response.json()
-            except httpx.HTTPError:
-                return None
+        if client is None:
+            async with httpx.AsyncClient() as client:
+                return await self._fetch_json(chain_url, client)
+        return await self._fetch_json(chain_url, client)
 
-    async def download_sprite(self, pokemon_id: int, is_shiny: bool = False) -> Path | None:
+    async def download_sprite(
+        self, pokemon_id: int, is_shiny: bool = False, client: httpx.AsyncClient | None = None
+    ) -> Path | None:
         """Download and cache Pokemon sprite."""
         sprite_type = "shiny" if is_shiny else "normal"
         sprite_file = self.sprites_dir / f"{pokemon_id}_{sprite_type}.png"
@@ -295,7 +315,11 @@ class PokeAPIClient:
         if sprite_file.exists():
             return sprite_file
 
-        pokemon_data = await self.get_pokemon(pokemon_id)
+        if client is None:
+            async with httpx.AsyncClient() as client:
+                return await self.download_sprite(pokemon_id, is_shiny=is_shiny, client=client)
+
+        pokemon_data = await self.get_pokemon(pokemon_id, client=client)
         if not pokemon_data:
             return None
 
@@ -308,15 +332,12 @@ class PokeAPIClient:
         if not sprite_url:
             return None
 
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(sprite_url)
-                response.raise_for_status()
-                with open(sprite_file, "wb") as f:
-                    f.write(response.content)
-                return sprite_file
-            except httpx.HTTPError:
-                return None
+        content = await self._fetch_bytes(sprite_url, client)
+        if not content:
+            return None
+        with open(sprite_file, "wb") as f:
+            f.write(content)
+        return sprite_file
 
     def get_sprite_url(self, pokemon_id: int, is_shiny: bool = False) -> str:
         """Get sprite URL without downloading."""
@@ -325,13 +346,16 @@ class PokeAPIClient:
         else:
             return f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{pokemon_id}.png"
 
-    async def create_pokedex_entry(self, pokemon_id: int) -> PokedexEntry | None:
+    async def create_pokedex_entry(
+        self, pokemon_id: int, client: httpx.AsyncClient | None = None
+    ) -> PokedexEntry | None:
         """Create a PokedexEntry from API data."""
-        pokemon_data = await self.get_pokemon(pokemon_id)
+        pokemon_data, species_data = await asyncio.gather(
+            self.get_pokemon(pokemon_id, client=client),
+            self.get_species(pokemon_id, client=client),
+        )
         if not pokemon_data:
             return None
-
-        species_data = await self.get_species(pokemon_id)
 
         # Extract types
         types = pokemon_data.get("types", [])
@@ -362,14 +386,19 @@ class PokeAPIClient:
         )
 
     async def create_pokemon_instance(
-        self, pokemon_id: int, is_shiny: bool = False, catch_location: str | None = None
+        self,
+        pokemon_id: int,
+        is_shiny: bool = False,
+        catch_location: str | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> Pokemon | None:
         """Create a Pokemon instance from API data."""
-        pokemon_data = await self.get_pokemon(pokemon_id)
+        pokemon_data, species_data = await asyncio.gather(
+            self.get_pokemon(pokemon_id, client=client),
+            self.get_species(pokemon_id, client=client),
+        )
         if not pokemon_data:
             return None
-
-        species_data = await self.get_species(pokemon_id)
 
         # Extract types
         types = pokemon_data.get("types", [])
@@ -383,7 +412,7 @@ class PokeAPIClient:
 
         if species_data and species_data.get("evolution_chain"):
             chain_url = species_data["evolution_chain"]["url"]
-            chain_data = await self.get_evolution_chain(chain_url)
+            chain_data = await self.get_evolution_chain(chain_url, client=client)
             if chain_data:
                 evo_info = self._parse_evolution_chain(chain_data["chain"], pokemon_id)
                 evolution_id = evo_info.get("evolves_to")

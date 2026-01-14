@@ -120,9 +120,13 @@ def initialize(
     name: str = typer.Option("Trainer", "--name", "-n", help="Your trainer name"),
     quick: bool = typer.Option(False, "--quick", "-q", help="Quick init (Gen 1 only)"),
     gen: int = typer.Option(0, "--gen", "-g", help="Initialize specific generation (1-9, 0=all)"),
+    concurrency: int = typer.Option(
+        10, "--concurrency", help="Concurrent PokeAPI requests during init", min=1, max=50
+    ),
 ) -> None:
     """Initialize PokeDo and create trainer profile."""
     import asyncio
+    import httpx
 
     from pokedo.data.pokeapi import pokeapi
     from pokedo.utils.config import config
@@ -153,19 +157,36 @@ def initialize(
     console.print(f"[dim]Loading Pokedex data from PokeAPI ({gen_label}: {total} Pokemon)...[/dim]")
     console.print("[dim]This may take a few minutes for the first run.[/dim]")
 
-    async def init_pokedex():
+    async def init_pokedex() -> int:
         loaded = 0
-        for i in range(start_id, end_id + 1):
-            entry = await pokeapi.create_pokedex_entry(i)
-            if entry:
-                db.save_pokedex_entry(entry)
-                loaded += 1
-            if loaded % 50 == 0:
-                console.print(f"[dim]  Loaded {loaded}/{total} Pokemon...[/dim]")
+        lock = asyncio.Lock()
+        semaphore = asyncio.Semaphore(min(concurrency, total))
+
+        async with httpx.AsyncClient() as client:
+            async def fetch_and_save(pokemon_id: int) -> None:
+                nonlocal loaded
+                async with semaphore:
+                    entry = await pokeapi.create_pokedex_entry(pokemon_id, client=client)
+                if entry:
+                    db.save_pokedex_entry(entry)
+                    async with lock:
+                        loaded += 1
+                        if loaded % 50 == 0 or loaded == total:
+                            console.print(f"[dim]  Loaded {loaded}/{total} Pokemon...[/dim]")
+
+            tasks = [fetch_and_save(i) for i in range(start_id, end_id + 1)]
+            await asyncio.gather(*tasks)
+        return loaded
 
     try:
-        asyncio.run(init_pokedex())
-        console.print(f"[green]+ Initialized Pokedex with {total} Pokemon ({gen_label})[/green]")
+        loaded = asyncio.run(init_pokedex())
+        if loaded < total:
+            console.print(
+                f"[yellow]Warning: Loaded {loaded}/{total} Pokemon ({gen_label}).[/yellow]"
+            )
+            console.print("[dim]Pokedex will populate as you catch Pokemon.[/dim]")
+        else:
+            console.print(f"[green]+ Initialized Pokedex with {loaded} Pokemon ({gen_label})[/green]")
     except Exception as e:
         console.print(f"[yellow]Warning: Could not fully initialize Pokedex: {e}[/yellow]")
         console.print("[dim]Pokedex will populate as you catch Pokemon.[/dim]")

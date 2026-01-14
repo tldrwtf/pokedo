@@ -105,6 +105,9 @@ pokedo
 # Full initialization (all 1025 Pokemon, takes a few minutes first time)
 pokedo init --name "Ash"
 
+# Speed up full initialization with parallel requests
+pokedo init --name "Ash" --concurrency 20
+
 # Quick start with Gen 1 only (151 Pokemon)
 pokedo init --name "Ash" --quick
 
@@ -407,6 +410,7 @@ For more development information, see:
 - Full initialization downloads data for 1025 Pokemon
 - Use `--quick` flag for Gen 1 only (151 Pokemon)
 - Use `--gen N` to initialize a specific generation
+- Use `--concurrency N` to increase parallel PokeAPI requests
 
 **Pokemon sprites not displaying**
 
