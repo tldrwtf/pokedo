@@ -104,8 +104,8 @@ async def register(user: UserCreate):
     if user.username in fake_users_db:
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = get_password_hash(user.password)
-    user_in_db = UserInDB(**user.dict(), hashed_password=hashed_password, disabled=False)
-    fake_users_db[user.username] = user_in_db.dict()
+    user_in_db = UserInDB(**user.model_dump(), hashed_password=hashed_password, disabled=False)
+    fake_users_db[user.username] = user_in_db.model_dump()
     return user
 
 
