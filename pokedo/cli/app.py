@@ -106,6 +106,14 @@ def show_version() -> None:
     """Show version information."""
     console.print(f"PokeDo v{__version__}")
 
+@app.command("tui")
+def launch_tui() -> None:
+    """Launch the Textual TUI dashboard."""
+    from pokedo.tui.app import PokeDoApp
+
+    PokeDoApp().run()
+
+
 
 @app.command("init")
 def initialize(

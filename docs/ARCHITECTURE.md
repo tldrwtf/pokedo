@@ -18,7 +18,7 @@
 
 PokeDo is a gamified task manager that combines productivity tracking with Pokemon collection mechanics. The application follows a layered architecture pattern with clear separation between:
 
-- **Presentation Layer** (CLI) - User interface and command handling
+- **Presentation Layer** (CLI/TUI) - User interface and command handling
 - **Business Logic Layer** (Core) - Domain models and game mechanics
 - **Data Access Layer** (Data) - Database operations and API clients
 - **Synchronization Layer** (Sync) - Client-side change queuing and server communication
@@ -26,6 +26,7 @@ PokeDo is a gamified task manager that combines productivity tracking with Pokem
 **Technology Stack:**
 - Python 3.10+
 - Typer (CLI framework)
+- Textual (TUI framework)
 - Rich (Terminal UI)
 - Pydantic (Data validation)
 - SQLite (Local storage)
@@ -45,6 +46,8 @@ pokedo/
 ├── cli/                  # Presentation Layer
 │   ├── app.py            # Main Typer application
 │   └── ...
+├── tui/                  # TUI Layer (Textual)
+│   ├── app.py            # Textual dashboard app
 ├── core/                 # Business Logic Layer
 │   ├── auth.py           # Authentication logic (Bcrypt/JWT)
 │   ├── task.py           # Task model and enums
@@ -66,7 +69,7 @@ pokedo/
 
 ## Layered Architecture
 
-### Presentation Layer (`cli/`)
+### Presentation Layer (`cli/`, `tui/`)
 
 The CLI layer handles all user interaction through the Typer framework.
 
@@ -84,6 +87,10 @@ The CLI layer handles all user interaction through the Typer framework.
 **`ui/`** - Display components
 - `displays.py`: Tables, panels, progress bars, ASCII art
 - `menus.py`: Interactive selection menus
+
+**TUI Layer (`tui/`)**
+- `app.py`: Textual-based dashboard for trainer, tasks, and team summaries
+- Uses the same data access layer (`data/`) for read-only views
 
 ### Server Layer (`server.py`)
 

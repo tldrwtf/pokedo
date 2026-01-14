@@ -200,6 +200,14 @@ pokedo stats inventory
 pokedo stats history --days 14
 ```
 
+### TUI (Preview)
+
+Launch the new terminal UI dashboard to get a live overview of your trainer profile, tasks, and team.
+
+```bash
+pokedo tui
+```
+
 ### Server Usage (Optional)
 
 PokeDo is developing a FastAPI server to enable cloud synchronization and multi-user features. This system uses `requests` for client-side pushing and `bcrypt` for secure authentication.
