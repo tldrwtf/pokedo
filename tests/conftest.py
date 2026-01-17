@@ -422,6 +422,7 @@ def isolated_db(tmp_path, monkeypatch) -> Database:
     modules_to_patch = [
         "pokedo.data.database",
         "pokedo.cli.commands.pokemon",
+        "pokedo.cli.commands.profile",
         "pokedo.cli.commands.tasks",
         "pokedo.cli.commands.stats",
         "pokedo.cli.commands.wellbeing",
