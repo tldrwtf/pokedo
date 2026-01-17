@@ -257,6 +257,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 │   trainer   │       │   tasks     │
 ├─────────────┤       ├─────────────┤
 │ id (PK)     │       │ id (PK)     │
+│             │       │ trainer_id  │
 │ name        │       │ title       │
 │ total_xp    │       │ category    │
 │ badges      │       │ difficulty  │
@@ -268,6 +269,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 │   pokemon   │──────→│   pokedex   │
 ├─────────────┤       ├─────────────┤
 │ id (PK)     │       │ pokedex_id  │
+│ trainer_id  │       │ trainer_id  │
 │ pokedex_id  │       │ name        │
 │ nickname    │       │ type1/type2 │
 │ level       │       │ rarity      │
@@ -278,21 +280,24 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 ┌──────────────────┐  ┌──────────────────┐
 │  mood_entries    │  │ exercise_entries │
 ├──────────────────┤  ├──────────────────┤
-│ id, date, mood   │  │ id, date, type   │
+│ id, trainer_id   │  │ id, trainer_id   │
+│ date, mood       │  │ date, type       │
 │ note, energy     │  │ duration, note   │
 └──────────────────┘  └──────────────────┘
 
 ┌──────────────────┐  ┌──────────────────┐
 │  sleep_entries   │  │hydration_entries │
 ├──────────────────┤  ├──────────────────┤
-│ id, date, hours  │  │ id, date, glasses│
+│ id, trainer_id   │  │ id, trainer_id   │
+│ date, hours      │  │ date, glasses    │
 │ quality, note    │  │ note             │
 └──────────────────┘  └──────────────────┘
 
 ┌──────────────────┐  ┌──────────────────┐
 │meditation_entries│  │ journal_entries  │
 ├──────────────────┤  ├──────────────────┤
-│ id, date, minutes│  │ id, date, content│
+│ id, trainer_id   │  │ id, trainer_id   │
+│ date, minutes    │  │ date, content    │
 │ note             │  │ gratitude_items  │
 └──────────────────┘  └──────────────────┘
 ```
@@ -303,6 +308,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 | Column | Type | Description |
 |--------|------|-------------|
 | id | INTEGER PK | Auto-increment ID |
+| trainer_id | INTEGER FK | Owning trainer profile |
 | title | TEXT | Task title |
 | description | TEXT | Optional description |
 | category | TEXT | work/exercise/learning/personal/health/creative |
@@ -321,6 +327,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 | Column | Type | Description |
 |--------|------|-------------|
 | id | INTEGER PK | Auto-increment ID |
+| trainer_id | INTEGER FK | Owning trainer profile |
 | pokedex_id | INTEGER | National Pokedex number |
 | name | TEXT | Species name |
 | nickname | TEXT | User-assigned nickname |
@@ -342,6 +349,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 **pokedex**
 | Column | Type | Description |
 |--------|------|-------------|
+| trainer_id | INTEGER PK | Owning trainer profile |
 | pokedex_id | INTEGER PK | National Pokedex number |
 | name | TEXT | Species name |
 | type1, type2 | TEXT | Pokemon types |
@@ -358,7 +366,7 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 **trainer**
 | Column | Type | Description |
 |--------|------|-------------|
-| id | INTEGER PK | Always 1 (single player) |
+| id | INTEGER PK | Trainer profile ID |
 | name | TEXT | Trainer name |
 | created_at | TIMESTAMP | Profile creation time |
 | total_xp | INTEGER | Accumulated XP |
@@ -614,7 +622,7 @@ STREAK_REWARDS = {
 
 ### Scalability Notes
 
-- Current design is single-user focused
-- Database schema could support multi-user with minor changes
+- Local database supports multiple trainer profiles via `trainer_id` scoping
+- Cloud sync would need per-user separation and conflict resolution
 - API client is already async-ready
 - Cache strategy would need revision for cloud deployment
