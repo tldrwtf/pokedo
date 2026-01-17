@@ -188,9 +188,14 @@ pokedo wellbeing today
 pokedo
 pokedo daily
 
+# Profiles
+pokedo init --name "Misty"
+pokedo profile set-default Misty
+
 # Profile
 pokedo profile
 pokedo stats profile
+pokedo profile set-default <name-or-id>
 
 # Streaks
 pokedo streaks
@@ -208,6 +213,7 @@ pokedo stats history --days 14
 ### TUI (Preview)
 
 Launch the new terminal UI dashboard to get a live overview of your trainer profile, tasks, and team.
+Press `p` to switch profiles and optionally set a new default.
 
 ```bash
 pokedo tui
@@ -456,7 +462,7 @@ A: Yes! Epic and hard tasks have small chances to encounter legendaries. Mythica
 A: Base shiny rate is 1%. Each day of your streak adds 0.5% (up to 10% max).
 
 **Q: Can I have multiple profiles?**
-A: Currently single-profile only. You can backup/restore `~/.pokedo/` to switch profiles.
+A: Yes. Each trainer profile is stored in the same local database. The CLI uses the default profile, and the TUI lets you switch profiles (press `p`) and set a new default.
 
 **Q: Does wellbeing tracking affect gameplay?**
 A: Yes! Good sleep improves catch rates, hydration goals boost Water-type encounters, and meditation increases Psychic/Fairy encounters.
