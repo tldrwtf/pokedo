@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from pokedo import __version__
-from pokedo.cli.commands import pokemon, stats, tasks, wellbeing
+from pokedo.cli.commands import pokemon, profile, stats, tasks, wellbeing
 from pokedo.data.database import db
 
 # Create main app
@@ -21,6 +21,7 @@ app.add_typer(tasks.app, name="task", help="Task management")
 app.add_typer(pokemon.app, name="pokemon", help="Pokemon collection")
 app.add_typer(wellbeing.app, name="wellbeing", help="Wellbeing tracking")
 app.add_typer(stats.app, name="stats", help="Statistics and profile")
+app.add_typer(profile.app, name="profile", help="Trainer profile")
 
 console = Console()
 
@@ -64,11 +65,6 @@ def meditate_shortcut(minutes: int = typer.Argument(...)) -> None:
     """Quick meditation log."""
     wellbeing.log_meditation(minutes, None)
 
-
-@app.command("profile")
-def profile_shortcut() -> None:
-    """Show trainer profile."""
-    stats.show_profile()
 
 
 @app.command("streaks")

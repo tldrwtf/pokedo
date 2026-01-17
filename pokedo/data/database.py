@@ -32,6 +32,7 @@ class Database:
             if env_url and env_url.startswith("sqlite:///"):
                 db_path = Path(env_url.replace("sqlite:///", ""))
 
+        self._active_trainer_id: int | None = None
         self.db_path = db_path or config.db_path
         config.ensure_dirs()
         self._init_db()
@@ -59,6 +60,7 @@ class Database:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     title TEXT NOT NULL,
                     description TEXT,
                     category TEXT DEFAULT 'personal',
@@ -72,7 +74,8 @@ class Database:
                     recurrence TEXT DEFAULT 'none',
                     parent_task_id INTEGER,
                     tags TEXT DEFAULT '[]',
-                    FOREIGN KEY (parent_task_id) REFERENCES tasks(id)
+                    FOREIGN KEY (parent_task_id) REFERENCES tasks(id),
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
@@ -80,6 +83,7 @@ class Database:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pokemon (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     pokedex_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     nickname TEXT,
@@ -100,14 +104,16 @@ class Database:
                     evolution_level INTEGER,
                     evolution_method TEXT,
                     sprite_url TEXT,
-                    sprite_path TEXT
+                    sprite_path TEXT,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
             # Pokedex table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pokedex (
-                    pokedex_id INTEGER PRIMARY KEY,
+                    trainer_id INTEGER NOT NULL,
+                    pokedex_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     type1 TEXT NOT NULL,
                     type2 TEXT,
@@ -119,7 +125,9 @@ class Database:
                     sprite_url TEXT,
                     rarity TEXT DEFAULT 'common',
                     evolves_from INTEGER,
-                    evolves_to TEXT DEFAULT '[]'
+                    evolves_to TEXT DEFAULT '[]',
+                    PRIMARY KEY (trainer_id, pokedex_id),
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
@@ -174,82 +182,249 @@ class Database:
                 except sqlite3.OperationalError:
                     pass  # Column likely exists
 
+            # Migration: Add trainer_id columns and backfill existing rows
+            default_trainer_id = self._ensure_default_trainer_id_for_migration(cursor)
+            for table_name in (
+                "tasks",
+                "pokemon",
+                "mood_entries",
+                "exercise_entries",
+                "sleep_entries",
+                "hydration_entries",
+                "meditation_entries",
+                "journal_entries",
+            ):
+                self._ensure_trainer_id_column(cursor, table_name, default_trainer_id)
+
+            # Migration: Make pokedex per-trainer
+            self._migrate_pokedex_table(cursor, default_trainer_id)
+
             # Wellbeing tables
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS mood_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     date TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
                     mood INTEGER NOT NULL,
                     note TEXT,
-                    energy_level INTEGER
+                    energy_level INTEGER,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS exercise_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     date TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
                     exercise_type TEXT NOT NULL,
                     duration_minutes INTEGER NOT NULL,
                     intensity INTEGER DEFAULT 3,
-                    note TEXT
+                    note TEXT,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sleep_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     date TEXT NOT NULL,
                     hours REAL NOT NULL,
                     quality INTEGER DEFAULT 3,
-                    note TEXT
+                    note TEXT,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS hydration_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     date TEXT NOT NULL,
                     glasses INTEGER NOT NULL,
-                    note TEXT
+                    note TEXT,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS meditation_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     date TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
                     minutes INTEGER NOT NULL,
-                    note TEXT
+                    note TEXT,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS journal_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
                     date TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    gratitude_items TEXT DEFAULT '[]'
+                    gratitude_items TEXT DEFAULT '[]',
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
                 )
             """)
 
+    def _ensure_trainer_id_column(
+        self, cursor: sqlite3.Cursor, table_name: str, default_trainer_id: int | None
+    ) -> None:
+        """Ensure a trainer_id column exists and backfill existing rows."""
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        )
+        if cursor.fetchone() is None:
+            return
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "trainer_id" not in columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN trainer_id INTEGER")
+        if default_trainer_id is not None:
+            cursor.execute(
+                f"UPDATE {table_name} SET trainer_id = ? WHERE trainer_id IS NULL",
+                (default_trainer_id,),
+            )
+
+    def _ensure_default_trainer_id_for_migration(self, cursor: sqlite3.Cursor) -> int | None:
+        """Ensure a default trainer ID exists for data migrations."""
+        cursor.execute(
+            "SELECT value FROM app_settings WHERE key = ?",
+            ("default_trainer_id",),
+        )
+        row = cursor.fetchone()
+        if row and row["value"]:
+            try:
+                return int(row["value"])
+            except ValueError:
+                pass
+
+        cursor.execute("SELECT id FROM trainer ORDER BY id LIMIT 1")
+        row = cursor.fetchone()
+        if row:
+            default_id = row["id"]
+        else:
+            trainer = self._create_trainer(cursor, "Trainer")
+            default_id = trainer.id
+
+        if default_id is None:
+            return None
+
+        cursor.execute(
+            """
+            INSERT INTO app_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+            ("default_trainer_id", str(default_id)),
+        )
+        return default_id
+
+    def _migrate_pokedex_table(
+        self, cursor: sqlite3.Cursor, default_trainer_id: int | None
+    ) -> None:
+        """Migrate legacy pokedex table to per-trainer schema."""
+        cursor.execute("PRAGMA table_info(pokedex)")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "trainer_id" in columns:
+            return
+        if default_trainer_id is None:
+            default_trainer_id = self._ensure_default_trainer_id_for_migration(cursor)
+
+        cursor.execute("ALTER TABLE pokedex RENAME TO pokedex_legacy")
+        cursor.execute("""
+            CREATE TABLE pokedex (
+                trainer_id INTEGER NOT NULL,
+                pokedex_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                type1 TEXT NOT NULL,
+                type2 TEXT,
+                is_seen INTEGER DEFAULT 0,
+                is_caught INTEGER DEFAULT 0,
+                times_caught INTEGER DEFAULT 0,
+                first_caught_at TEXT,
+                shiny_caught INTEGER DEFAULT 0,
+                sprite_url TEXT,
+                rarity TEXT DEFAULT 'common',
+                evolves_from INTEGER,
+                evolves_to TEXT DEFAULT '[]',
+                PRIMARY KEY (trainer_id, pokedex_id),
+                FOREIGN KEY (trainer_id) REFERENCES trainer(id)
+            )
+        """)
+        if default_trainer_id is not None:
+            cursor.execute(
+                """
+                INSERT INTO pokedex (
+                    trainer_id, pokedex_id, name, type1, type2, is_seen, is_caught,
+                    times_caught, first_caught_at, shiny_caught, sprite_url, rarity,
+                    evolves_from, evolves_to
+                )
+                SELECT ?, pokedex_id, name, type1, type2, is_seen, is_caught,
+                    times_caught, first_caught_at, shiny_caught, sprite_url, rarity,
+                    evolves_from, evolves_to
+                FROM pokedex_legacy
+            """,
+                (default_trainer_id,),
+            )
+        cursor.execute("DROP TABLE pokedex_legacy")
+
+    def set_active_trainer_id(self, trainer_id: int | None) -> None:
+        """Set the active trainer ID for this database session."""
+        self._active_trainer_id = trainer_id
+
+    def _resolve_trainer_id(
+        self, trainer_id: int | None, ensure: bool = False
+    ) -> int | None:
+        """Resolve trainer ID using explicit, active, or default settings."""
+        if trainer_id is not None:
+            self._active_trainer_id = trainer_id
+            return trainer_id
+        if self._active_trainer_id is not None:
+            return self._active_trainer_id
+
+        default_id = self.get_default_trainer_id()
+        if default_id is not None:
+            self._active_trainer_id = default_id
+            return default_id
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM trainer ORDER BY id LIMIT 1")
+            row = cursor.fetchone()
+            if row:
+                self._active_trainer_id = row["id"]
+                return self._active_trainer_id
+
+        if ensure:
+            trainer = self.get_or_create_trainer()
+            return trainer.id
+
+        return None
+
     # Task operations
-    def create_task(self, task: Task) -> Task:
+    def create_task(self, task: Task, trainer_id: int | None = None) -> Task:
         """Create a new task."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO tasks (title, description, category, difficulty, priority,
+                INSERT INTO tasks (trainer_id, title, description, category, difficulty, priority,
                     created_at, due_date, completed_at, is_completed, is_archived,
                     recurrence, parent_task_id, tags)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
+                    resolved_trainer_id,
                     task.title,
                     task.description,
                     task.category.value,
@@ -268,23 +443,36 @@ class Database:
             task.id = cursor.lastrowid
             return task
 
-    def get_task(self, task_id: int) -> Task | None:
+    def get_task(self, task_id: int, trainer_id: int | None = None) -> Task | None:
         """Get a task by ID."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return None
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+            cursor.execute(
+                "SELECT * FROM tasks WHERE id = ? AND trainer_id = ?",
+                (task_id, resolved_trainer_id),
+            )
             row = cursor.fetchone()
             if row:
                 return self._row_to_task(row)
             return None
 
     def get_tasks(
-        self, include_completed: bool = False, include_archived: bool = False
+        self,
+        include_completed: bool = False,
+        include_archived: bool = False,
+        trainer_id: int | None = None,
     ) -> list[Task]:
         """Get all tasks with optional filters."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            query = "SELECT * FROM tasks WHERE 1=1"
+            query = "SELECT * FROM tasks WHERE trainer_id = ?"
+            params: list = [resolved_trainer_id]
             if not include_completed:
                 query += " AND is_completed = 0"
             if not include_archived:
@@ -300,17 +488,22 @@ class Database:
                         ELSE 0
                     END DESC
             """
-            cursor.execute(query)
+            cursor.execute(query, params)
             return [self._row_to_task(row) for row in cursor.fetchall()]
 
-    def get_tasks_for_date(self, target_date: date) -> list[Task]:
+    def get_tasks_for_date(
+        self, target_date: date, trainer_id: int | None = None
+    ) -> list[Task]:
         """Get tasks due on a specific date."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
                 SELECT * FROM tasks
-                WHERE due_date = ? AND is_archived = 0
+                WHERE due_date = ? AND is_archived = 0 AND trainer_id = ?
                 ORDER BY
                     CASE priority
                         WHEN 'urgent' THEN 4
@@ -320,12 +513,15 @@ class Database:
                         ELSE 0
                     END DESC
             """,
-                (target_date.isoformat(),),
+                (target_date.isoformat(), resolved_trainer_id),
             )
             return [self._row_to_task(row) for row in cursor.fetchall()]
 
-    def update_task(self, task: Task) -> None:
+    def update_task(self, task: Task, trainer_id: int | None = None) -> None:
         """Update an existing task."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -334,7 +530,7 @@ class Database:
                     title = ?, description = ?, category = ?, difficulty = ?,
                     priority = ?, due_date = ?, completed_at = ?, is_completed = ?,
                     is_archived = ?, recurrence = ?, parent_task_id = ?, tags = ?
-                WHERE id = ?
+                WHERE id = ? AND trainer_id = ?
             """,
                 (
                     task.title,
@@ -350,14 +546,21 @@ class Database:
                     task.parent_task_id,
                     json.dumps(task.tags),
                     task.id,
+                    resolved_trainer_id,
                 ),
             )
 
-    def delete_task(self, task_id: int) -> None:
+    def delete_task(self, task_id: int, trainer_id: int | None = None) -> None:
         """Delete a task."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            cursor.execute(
+                "DELETE FROM tasks WHERE id = ? AND trainer_id = ?",
+                (task_id, resolved_trainer_id),
+            )
 
     def _row_to_task(self, row: sqlite3.Row) -> Task:
         """Convert database row to Task model."""
@@ -381,8 +584,9 @@ class Database:
         )
 
     # Pokemon operations
-    def save_pokemon(self, pokemon: Pokemon) -> Pokemon:
+    def save_pokemon(self, pokemon: Pokemon, trainer_id: int | None = None) -> Pokemon:
         """Save a caught Pokemon."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
         with self._get_connection() as conn:
             cursor = conn.cursor()
             if pokemon.id:
@@ -391,7 +595,7 @@ class Database:
                     UPDATE pokemon SET
                         nickname = ?, level = ?, xp = ?, happiness = ?, evs = ?, ivs = ?,
                         is_active = ?, is_favorite = ?, can_evolve = ?
-                    WHERE id = ?
+                    WHERE id = ? AND trainer_id = ?
                 """,
                     (
                         pokemon.nickname,
@@ -404,18 +608,20 @@ class Database:
                         int(pokemon.is_favorite),
                         int(pokemon.can_evolve),
                         pokemon.id,
+                        resolved_trainer_id,
                     ),
                 )
             else:
                 cursor.execute(
                     """
-                    INSERT INTO pokemon (pokedex_id, name, nickname, type1, type2,
+                    INSERT INTO pokemon (trainer_id, pokedex_id, name, nickname, type1, type2,
                         level, xp, happiness, evs, ivs, caught_at, is_shiny, catch_location,
                         is_active, is_favorite, can_evolve, evolution_id,
                         evolution_level, evolution_method, sprite_url, sprite_path)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
+                        resolved_trainer_id,
                         pokemon.pokedex_id,
                         pokemon.name,
                         pokemon.nickname,
@@ -442,35 +648,59 @@ class Database:
                 pokemon.id = cursor.lastrowid
             return pokemon
 
-    def get_pokemon(self, pokemon_id: int) -> Pokemon | None:
+    def get_pokemon(self, pokemon_id: int, trainer_id: int | None = None) -> Pokemon | None:
         """Get a Pokemon by ID."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return None
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM pokemon WHERE id = ?", (pokemon_id,))
+            cursor.execute(
+                "SELECT * FROM pokemon WHERE id = ? AND trainer_id = ?",
+                (pokemon_id, resolved_trainer_id),
+            )
             row = cursor.fetchone()
             if row:
                 return self._row_to_pokemon(row)
             return None
 
-    def get_all_pokemon(self) -> list[Pokemon]:
+    def get_all_pokemon(self, trainer_id: int | None = None) -> list[Pokemon]:
         """Get all owned Pokemon."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM pokemon ORDER BY caught_at DESC")
+            cursor.execute(
+                "SELECT * FROM pokemon WHERE trainer_id = ? ORDER BY caught_at DESC",
+                (resolved_trainer_id,),
+            )
             return [self._row_to_pokemon(row) for row in cursor.fetchall()]
 
-    def get_active_team(self) -> list[Pokemon]:
+    def get_active_team(self, trainer_id: int | None = None) -> list[Pokemon]:
         """Get Pokemon in active team."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM pokemon WHERE is_active = 1 LIMIT 6")
+            cursor.execute(
+                "SELECT * FROM pokemon WHERE trainer_id = ? AND is_active = 1 LIMIT 6",
+                (resolved_trainer_id,),
+            )
             return [self._row_to_pokemon(row) for row in cursor.fetchall()]
 
-    def delete_pokemon(self, pokemon_id: int) -> None:
+    def delete_pokemon(self, pokemon_id: int, trainer_id: int | None = None) -> None:
         """Release a Pokemon."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM pokemon WHERE id = ?", (pokemon_id,))
+            cursor.execute(
+                "DELETE FROM pokemon WHERE id = ? AND trainer_id = ?",
+                (pokemon_id, resolved_trainer_id),
+            )
 
     def _row_to_pokemon(self, row: sqlite3.Row) -> Pokemon:
         """Convert database row to Pokemon model."""
@@ -508,18 +738,21 @@ class Database:
         )
 
     # Pokedex operations
-    def save_pokedex_entry(self, entry: PokedexEntry) -> None:
+    def save_pokedex_entry(self, entry: PokedexEntry, trainer_id: int | None = None) -> None:
         """Save or update a Pokedex entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO pokedex (pokedex_id, name, type1, type2,
+                INSERT OR REPLACE INTO pokedex (
+                    trainer_id, pokedex_id, name, type1, type2,
                     is_seen, is_caught, times_caught, first_caught_at, shiny_caught,
                     sprite_url, rarity, evolves_from, evolves_to)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
+                    resolved_trainer_id,
                     entry.pokedex_id,
                     entry.name,
                     entry.type1,
@@ -536,21 +769,35 @@ class Database:
                 ),
             )
 
-    def get_pokedex_entry(self, pokedex_id: int) -> PokedexEntry | None:
+    def get_pokedex_entry(
+        self, pokedex_id: int, trainer_id: int | None = None
+    ) -> PokedexEntry | None:
         """Get a Pokedex entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return None
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM pokedex WHERE pokedex_id = ?", (pokedex_id,))
+            cursor.execute(
+                "SELECT * FROM pokedex WHERE trainer_id = ? AND pokedex_id = ?",
+                (resolved_trainer_id, pokedex_id),
+            )
             row = cursor.fetchone()
             if row:
                 return self._row_to_pokedex_entry(row)
             return None
 
-    def get_pokedex(self) -> list[PokedexEntry]:
+    def get_pokedex(self, trainer_id: int | None = None) -> list[PokedexEntry]:
         """Get all Pokedex entries."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM pokedex ORDER BY pokedex_id")
+            cursor.execute(
+                "SELECT * FROM pokedex WHERE trainer_id = ? ORDER BY pokedex_id",
+                (resolved_trainer_id,),
+            )
             return [self._row_to_pokedex_entry(row) for row in cursor.fetchall()]
 
     def _row_to_pokedex_entry(self, row: sqlite3.Row) -> PokedexEntry:
@@ -592,20 +839,28 @@ class Database:
                     cursor.execute("SELECT * FROM trainer WHERE id = ?", (default_id,))
                     trainer_row = cursor.fetchone()
                     if trainer_row:
-                        return self._row_to_trainer(trainer_row)
+                        trainer = self._row_to_trainer(trainer_row)
+                        self._active_trainer_id = trainer.id
+                        return trainer
 
             cursor.execute("SELECT * FROM trainer ORDER BY id LIMIT 1")
             row = cursor.fetchone()
             if row:
-                return self._row_to_trainer(row)
+                trainer = self._row_to_trainer(row)
+                self._active_trainer_id = trainer.id
+                return trainer
 
-            return self._create_trainer(cursor, name)
+            trainer = self._create_trainer(cursor, name)
+            self._active_trainer_id = trainer.id
+            return trainer
 
     def create_trainer(self, name: str = "Trainer") -> Trainer:
         """Create a new trainer profile."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            return self._create_trainer(cursor, name)
+            trainer = self._create_trainer(cursor, name)
+            self._active_trainer_id = trainer.id
+            return trainer
 
     def get_trainer_by_name(self, name: str) -> Trainer | None:
         """Get a trainer by name."""
@@ -661,6 +916,7 @@ class Database:
             """,
                 ("default_trainer_id", str(trainer_id)),
             )
+        self._active_trainer_id = trainer_id
 
     def save_trainer(self, trainer: Trainer) -> None:
         """Save trainer data."""
@@ -736,7 +992,29 @@ class Database:
             ),
         )
         trainer.id = cursor.lastrowid
+        if trainer.id is not None:
+            self._set_default_trainer_id_with_cursor(cursor, trainer.id)
         return trainer
+
+    def _set_default_trainer_id_with_cursor(
+        self, cursor: sqlite3.Cursor, trainer_id: int
+    ) -> None:
+        """Persist the default trainer ID using an existing cursor."""
+        cursor.execute(
+            "SELECT value FROM app_settings WHERE key = ?",
+            ("default_trainer_id",),
+        )
+        row = cursor.fetchone()
+        if row and row["value"]:
+            return
+        cursor.execute(
+            """
+            INSERT INTO app_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+            ("default_trainer_id", str(trainer_id)),
+        )
 
     def _row_to_trainer(self, row: sqlite3.Row) -> Trainer:
         """Convert database row to Trainer model."""
@@ -789,16 +1067,18 @@ class Database:
         )
 
     # Wellbeing operations
-    def save_mood(self, entry: MoodEntry) -> MoodEntry:
+    def save_mood(self, entry: MoodEntry, trainer_id: int | None = None) -> MoodEntry:
         """Save a mood entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO mood_entries (date, timestamp, mood, note, energy_level)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO mood_entries (trainer_id, date, timestamp, mood, note, energy_level)
+                VALUES (?, ?, ?, ?, ?, ?)
             """,
                 (
+                    resolved_trainer_id,
                     entry.date.isoformat(),
                     entry.timestamp.isoformat(),
                     entry.mood.value,
@@ -809,17 +1089,21 @@ class Database:
             entry.id = cursor.lastrowid
             return entry
 
-    def save_exercise(self, entry: ExerciseEntry) -> ExerciseEntry:
+    def save_exercise(
+        self, entry: ExerciseEntry, trainer_id: int | None = None
+    ) -> ExerciseEntry:
         """Save an exercise entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO exercise_entries (date, timestamp, exercise_type,
+                INSERT INTO exercise_entries (trainer_id, date, timestamp, exercise_type,
                     duration_minutes, intensity, note)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
                 (
+                    resolved_trainer_id,
                     entry.date.isoformat(),
                     entry.timestamp.isoformat(),
                     entry.exercise_type.value,
@@ -831,58 +1115,79 @@ class Database:
             entry.id = cursor.lastrowid
             return entry
 
-    def save_sleep(self, entry: SleepEntry) -> SleepEntry:
+    def save_sleep(self, entry: SleepEntry, trainer_id: int | None = None) -> SleepEntry:
         """Save a sleep entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO sleep_entries (date, hours, quality, note)
-                VALUES (?, ?, ?, ?)
-            """,
-                (entry.date.isoformat(), entry.hours, entry.quality, entry.note),
-            )
-            entry.id = cursor.lastrowid
-            return entry
-
-    def save_hydration(self, entry: HydrationEntry) -> HydrationEntry:
-        """Save a hydration entry."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO hydration_entries (date, glasses, note)
-                VALUES (?, ?, ?)
-            """,
-                (entry.date.isoformat(), entry.glasses, entry.note),
-            )
-            entry.id = cursor.lastrowid
-            return entry
-
-    def save_meditation(self, entry: MeditationEntry) -> MeditationEntry:
-        """Save a meditation entry."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO meditation_entries (date, timestamp, minutes, note)
-                VALUES (?, ?, ?, ?)
-            """,
-                (entry.date.isoformat(), entry.timestamp.isoformat(), entry.minutes, entry.note),
-            )
-            entry.id = cursor.lastrowid
-            return entry
-
-    def save_journal(self, entry: JournalEntry) -> JournalEntry:
-        """Save a journal entry."""
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO journal_entries (date, timestamp, content, gratitude_items)
-                VALUES (?, ?, ?, ?)
+                INSERT OR REPLACE INTO sleep_entries (trainer_id, date, hours, quality, note)
+                VALUES (?, ?, ?, ?, ?)
             """,
                 (
+                    resolved_trainer_id,
+                    entry.date.isoformat(),
+                    entry.hours,
+                    entry.quality,
+                    entry.note,
+                ),
+            )
+            entry.id = cursor.lastrowid
+            return entry
+
+    def save_hydration(
+        self, entry: HydrationEntry, trainer_id: int | None = None
+    ) -> HydrationEntry:
+        """Save a hydration entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO hydration_entries (trainer_id, date, glasses, note)
+                VALUES (?, ?, ?, ?)
+            """,
+                (resolved_trainer_id, entry.date.isoformat(), entry.glasses, entry.note),
+            )
+            entry.id = cursor.lastrowid
+            return entry
+
+    def save_meditation(
+        self, entry: MeditationEntry, trainer_id: int | None = None
+    ) -> MeditationEntry:
+        """Save a meditation entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO meditation_entries (trainer_id, date, timestamp, minutes, note)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (
+                    resolved_trainer_id,
+                    entry.date.isoformat(),
+                    entry.timestamp.isoformat(),
+                    entry.minutes,
+                    entry.note,
+                ),
+            )
+            entry.id = cursor.lastrowid
+            return entry
+
+    def save_journal(self, entry: JournalEntry, trainer_id: int | None = None) -> JournalEntry:
+        """Save a journal entry."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO journal_entries (trainer_id, date, timestamp, content, gratitude_items)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (
+                    resolved_trainer_id,
                     entry.date.isoformat(),
                     entry.timestamp.isoformat(),
                     entry.content,
@@ -892,15 +1197,22 @@ class Database:
             entry.id = cursor.lastrowid
             return entry
 
-    def get_mood_for_date(self, target_date: date) -> MoodEntry | None:
+    def get_mood_for_date(
+        self, target_date: date, trainer_id: int | None = None
+    ) -> MoodEntry | None:
         """Get mood entry for a date."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return None
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT * FROM mood_entries WHERE date = ? ORDER BY timestamp DESC LIMIT 1
+                SELECT * FROM mood_entries
+                WHERE date = ? AND trainer_id = ?
+                ORDER BY timestamp DESC LIMIT 1
             """,
-                (target_date.isoformat(),),
+                (target_date.isoformat(), resolved_trainer_id),
             )
             row = cursor.fetchone()
             if row:
@@ -914,15 +1226,20 @@ class Database:
                 )
             return None
 
-    def get_exercises_for_date(self, target_date: date) -> list[ExerciseEntry]:
+    def get_exercises_for_date(
+        self, target_date: date, trainer_id: int | None = None
+    ) -> list[ExerciseEntry]:
         """Get exercise entries for a date."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT * FROM exercise_entries WHERE date = ?
+                SELECT * FROM exercise_entries WHERE date = ? AND trainer_id = ?
             """,
-                (target_date.isoformat(),),
+                (target_date.isoformat(), resolved_trainer_id),
             )
             return [
                 ExerciseEntry(

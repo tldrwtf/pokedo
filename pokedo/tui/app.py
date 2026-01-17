@@ -216,15 +216,18 @@ class PokeDoApp(App):
         if not trainers:
             trainer = db.get_or_create_trainer()
             self.active_trainer_id = trainer.id
+            db.set_active_trainer_id(trainer.id)
             self.refresh_dashboard()
             return
         if len(trainers) == 1:
             self.active_trainer_id = trainers[0].id
+            db.set_active_trainer_id(trainers[0].id)
             self.refresh_dashboard()
             return
         default_id = db.get_default_trainer_id()
         if default_id is not None and any(t.id == default_id for t in trainers):
             self.active_trainer_id = default_id
+            db.set_active_trainer_id(default_id)
             self.refresh_dashboard()
             return
         options = [(f"{t.name} (Lv {t.level})", str(t.id)) for t in trainers]
@@ -234,6 +237,7 @@ class PokeDoApp(App):
         if trainer_id is None:
             return
         self.active_trainer_id = trainer_id
+        db.set_active_trainer_id(trainer_id)
         self.refresh_dashboard()
 
     def get_active_trainer(self):
@@ -241,9 +245,11 @@ class PokeDoApp(App):
         if self.active_trainer_id is not None:
             trainer = db.get_trainer_by_id(self.active_trainer_id)
             if trainer is not None:
+                db.set_active_trainer_id(trainer.id)
                 return trainer
         trainer = db.get_or_create_trainer()
         self.active_trainer_id = trainer.id
+        db.set_active_trainer_id(trainer.id)
         return trainer
 
     def refresh_dashboard(self) -> None:
