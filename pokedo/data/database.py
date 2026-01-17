@@ -151,6 +151,14 @@ class Database:
                 )
             """)
 
+            # App settings (key/value)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+            """)
+
             # Migration: Add trainer_class if missing
             try:
                 cursor.execute(
@@ -570,32 +578,89 @@ class Database:
         """Get existing trainer or create new one."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM trainer LIMIT 1")
+            cursor.execute(
+                "SELECT value FROM app_settings WHERE key = ?",
+                ("default_trainer_id",),
+            )
+            row = cursor.fetchone()
+            if row and row["value"]:
+                try:
+                    default_id = int(row["value"])
+                except ValueError:
+                    default_id = None
+                if default_id is not None:
+                    cursor.execute("SELECT * FROM trainer WHERE id = ?", (default_id,))
+                    trainer_row = cursor.fetchone()
+                    if trainer_row:
+                        return self._row_to_trainer(trainer_row)
+
+            cursor.execute("SELECT * FROM trainer ORDER BY id LIMIT 1")
             row = cursor.fetchone()
             if row:
                 return self._row_to_trainer(row)
 
-            # Create new trainer
-            trainer = Trainer(name=name)
+            return self._create_trainer(cursor, name)
+
+    def create_trainer(self, name: str = "Trainer") -> Trainer:
+        """Create a new trainer profile."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            return self._create_trainer(cursor, name)
+
+    def get_trainer_by_name(self, name: str) -> Trainer | None:
+        """Get a trainer by name."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM trainer WHERE name = ? ORDER BY created_at DESC LIMIT 1",
+                (name,),
+            )
+            row = cursor.fetchone()
+            return self._row_to_trainer(row) if row else None
+
+    def list_trainers(self) -> list[Trainer]:
+        """List all trainer profiles."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM trainer ORDER BY created_at")
+            return [self._row_to_trainer(row) for row in cursor.fetchall()]
+
+    def get_trainer_by_id(self, trainer_id: int) -> Trainer | None:
+        """Get a trainer by database ID."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM trainer WHERE id = ?", (trainer_id,))
+            row = cursor.fetchone()
+            return self._row_to_trainer(row) if row else None
+
+    def get_default_trainer_id(self) -> int | None:
+        """Get the default trainer ID if configured."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT value FROM app_settings WHERE key = ?",
+                ("default_trainer_id",),
+            )
+            row = cursor.fetchone()
+            if not row or not row["value"]:
+                return None
+            try:
+                return int(row["value"])
+            except ValueError:
+                return None
+
+    def set_default_trainer_id(self, trainer_id: int) -> None:
+        """Persist the default trainer ID."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO trainer (name, trainer_class, created_at, total_xp, tasks_completed,
-                    pokemon_caught, badges, inventory)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO app_settings (key, value)
+                VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
             """,
-                (
-                    trainer.name,
-                    trainer.trainer_class.value,
-                    trainer.created_at.isoformat(),
-                    trainer.total_xp,
-                    trainer.tasks_completed,
-                    trainer.pokemon_caught,
-                    json.dumps([]),
-                    json.dumps({}),
-                ),
+                ("default_trainer_id", str(trainer_id)),
             )
-            trainer.id = cursor.lastrowid
-            return trainer
 
     def save_trainer(self, trainer: Trainer) -> None:
         """Save trainer data."""
@@ -649,6 +714,29 @@ class Database:
                     trainer.id,
                 ),
             )
+
+    def _create_trainer(self, cursor: sqlite3.Cursor, name: str) -> Trainer:
+        """Insert a new trainer row using an existing cursor."""
+        trainer = Trainer(name=name)
+        cursor.execute(
+            """
+            INSERT INTO trainer (name, trainer_class, created_at, total_xp, tasks_completed,
+                pokemon_caught, badges, inventory)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                trainer.name,
+                trainer.trainer_class.value,
+                trainer.created_at.isoformat(),
+                trainer.total_xp,
+                trainer.tasks_completed,
+                trainer.pokemon_caught,
+                json.dumps([]),
+                json.dumps({}),
+            ),
+        )
+        trainer.id = cursor.lastrowid
+        return trainer
 
     def _row_to_trainer(self, row: sqlite3.Row) -> Trainer:
         """Convert database row to Trainer model."""

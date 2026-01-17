@@ -139,8 +139,14 @@ def initialize(
     console.print("[green]+ Created data directories[/green]")
 
     # Initialize database
-    db.get_or_create_trainer(name)
-    console.print(f"[green]+ Created trainer profile: {name}[/green]")
+    trainer = db.get_trainer_by_name(name)
+    if trainer is None:
+        trainer = db.create_trainer(name)
+        console.print(f"[green]+ Created trainer profile: {name}[/green]")
+    else:
+        console.print(f"[yellow]! Trainer profile already exists: {name}[/yellow]")
+    if trainer.id is not None:
+        db.set_default_trainer_id(trainer.id)
 
     # Determine range to initialize
     if quick:

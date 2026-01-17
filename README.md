@@ -99,6 +99,8 @@ pokedo
 
 ## Usage
 
+You can use `pd` as a shorthand for `pokedo` once installed.
+
 ### Initialize
 
 ```bash
