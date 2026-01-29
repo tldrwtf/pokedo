@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.3.1 | **License:** MIT | **Python:** 3.10+ 
+**Version:** 0.3.2 | **License:** MIT | **Python:** 3.10+ 
 
 ![CI](https://github.com/tldrwtf/pokedo/actions/workflows/ci.yml/badge.svg?branch=main) ![Version](https://badgen.net/github/release/tldrwtf/pokedo/stable)
 
@@ -508,6 +508,9 @@ A: Yes! Good sleep improves catch rates, hydration goals boost Water-type encoun
 **Q: How do I evolve Pokemon?**
 A: Level up your Pokemon by completing tasks. When evolution requirements are met, use `pokedo pokemon evolve <id>`.
 
+**Q: What is the difference between CLI and TUI?**
+A: The CLI (Command Line Interface) uses typed commands like `pokedo task add`. The TUI (Terminal User Interface) launched with `pokedo tui` provides an interactive graphical experience with keyboard navigation, tabbed views, and real-time updates.
+
 ---
 
 ## Project Structure
@@ -532,7 +535,8 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed documentation.
 ## Credits
 
 - Pokemon data from [PokeAPI](https://pokeapi.co/)
-- Built with [Typer](https://typer.tiangolo.com/) and [Rich](https://rich.readthedocs.io/)
+- CLI built with [Typer](https://typer.tiangolo.com/) and [Rich](https://rich.readthedocs.io/)
+- TUI built with [Textual](https://textual.textualize.io/)
 - Inspired by the Pokemon franchise by Nintendo/Game Freak
 
 ---
