@@ -1,0 +1,149 @@
+/* Base TUI styles for PokeDo */
+
+/* Color variables matching the CLI display colors */
+$difficulty-easy: green;
+$difficulty-medium: yellow;
+$difficulty-hard: red;
+$difficulty-epic: magenta;
+
+$priority-low: $text-muted;
+$priority-medium: $text;
+$priority-high: yellow;
+$priority-urgent: red;
+
+$type-normal: white;
+$type-fire: red;
+$type-water: blue;
+$type-electric: yellow;
+$type-grass: green;
+$type-ice: cyan;
+$type-fighting: red;
+$type-poison: magenta;
+$type-ground: yellow;
+$type-flying: cyan;
+$type-psychic: magenta;
+$type-bug: green;
+$type-rock: yellow;
+$type-ghost: magenta;
+$type-dragon: blue;
+$type-dark: white;
+$type-steel: white;
+$type-fairy: magenta;
+
+/* Screen base styles */
+Screen {
+    background: $surface;
+}
+
+/* Modal styles */
+ModalScreen {
+    align: center middle;
+}
+
+.modal-dialog {
+    width: 70%;
+    max-width: 80;
+    padding: 1 2;
+    border: round $accent;
+    background: $panel;
+}
+
+.modal-title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.modal-actions {
+    margin-top: 1;
+    height: auto;
+    align: right middle;
+}
+
+/* Form styles */
+.form-group {
+    margin-bottom: 1;
+}
+
+.form-label {
+    margin-bottom: 0;
+}
+
+/* Task list styles */
+.task-container {
+    height: 100%;
+}
+
+.task-list-panel {
+    width: 2fr;
+    height: 100%;
+}
+
+.task-detail-panel {
+    width: 1fr;
+    height: 100%;
+    padding: 1;
+}
+
+/* Detail panel content */
+.detail-section {
+    margin-bottom: 1;
+}
+
+.detail-label {
+    color: $text-muted;
+}
+
+.detail-value {
+    color: $text;
+}
+
+/* Status indicators */
+.status-pending {
+    color: yellow;
+}
+
+.status-completed {
+    color: green;
+}
+
+.status-overdue {
+    color: red;
+}
+
+/* Encounter display */
+.encounter-container {
+    align: center middle;
+    padding: 2;
+}
+
+.encounter-title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.encounter-pokemon {
+    text-align: center;
+    margin: 1;
+}
+
+.encounter-caught {
+    color: green;
+    text-style: bold;
+}
+
+.encounter-escaped {
+    color: red;
+    text-style: bold;
+}
+
+/* Quick help styling */
+.help-key {
+    color: $accent;
+    text-style: bold;
+}
+
+.help-desc {
+    color: $text-muted;
+}

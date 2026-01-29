@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 from rich.box import ROUNDED
 from rich.panel import Panel
@@ -13,6 +14,10 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Footer, Header, Select, Static
 
 from pokedo.data.database import db
+from pokedo.tui.screens.tasks import TaskManagementScreen
+
+# Path to styles
+STYLES_PATH = Path(__file__).parent / "styles" / "base.tcss"
 
 
 class TrainerSummary(Static):
@@ -80,11 +85,10 @@ class QuickHelp(Static):
     def refresh_content(self) -> None:
         content = (
             "[bold]Shortcuts[/bold]\n"
-            "r - Refresh dashboard\n"
-            "p - Switch profile\n"
-            "q - Quit\n"
-            "\n"
-            "Use the CLI for now to manage tasks and Pokemon."
+            "[green]t[/green] - Task management\n"
+            "[cyan]r[/cyan] - Refresh dashboard\n"
+            "[yellow]p[/yellow] - Switch profile\n"
+            "[red]q[/red] - Quit\n"
         )
         self.update(Panel(content, title="Help", box=ROUNDED))
 
@@ -164,7 +168,10 @@ class PokeDoApp(App):
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
         ("p", "switch_profile", "Profiles"),
+        ("t", "open_tasks", "Tasks"),
     ]
+
+    CSS_PATH = STYLES_PATH if STYLES_PATH.exists() else None
 
     CSS = """
     Dashboard {
@@ -210,6 +217,10 @@ class PokeDoApp(App):
             ProfileSelectScreen(options, default_value),
             self._on_profile_selected,
         )
+
+    def action_open_tasks(self) -> None:
+        """Open the task management screen."""
+        self.push_screen(TaskManagementScreen())
 
     def _ensure_active_trainer(self) -> None:
         trainers = db.list_trainers()
