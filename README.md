@@ -60,6 +60,14 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Achievement badges
 - Inventory system (Pokeballs, evolution items)
 
+### Terminal User Interface (TUI)
+
+- Interactive dashboard with trainer profile, team, and task summaries
+- Full task management with tabbed filtering (Active/Due Today/All/Archived)
+- Add, edit, complete, and delete tasks with keyboard shortcuts
+- Task completion triggers Pokemon encounters with visual feedback
+- Profile switching support
+
 ## Installation
 
 ### Requirements
@@ -212,14 +220,42 @@ pokedo stats inventory
 pokedo stats history --days 14
 ```
 
-### TUI (Preview)
+### TUI (Terminal User Interface)
 
-Launch the new terminal UI dashboard to get a live overview of your trainer profile, tasks, and team.
-Press `p` to switch profiles and optionally set a new default.
+Launch the interactive terminal UI for a full-featured graphical experience.
 
 ```bash
 pokedo tui
 ```
+
+**Dashboard Keybindings:**
+
+| Key | Action |
+|-----|--------|
+| `q` | Quit the TUI |
+| `r` | Refresh dashboard |
+| `p` | Switch profiles |
+| `t` | Open task management |
+
+**Task Management Screen** (press `t` from dashboard):
+
+The task screen provides full CRUD operations with tabbed filtering:
+
+- **Active** - Pending tasks (not completed, not archived)
+- **Due Today** - Tasks due on the current date
+- **All** - All non-archived tasks
+- **Archived** - Archived tasks
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new task |
+| `c` | Complete selected task (triggers Pokemon encounter) |
+| `e` | Edit selected task |
+| `d` | Delete selected task (with confirmation) |
+| `r` | Refresh task lists |
+| `Escape` | Return to dashboard |
+
+Completing a task in the TUI triggers the full encounter flow with XP rewards, streak updates, and Pokemon catching, just like the CLI.
 
 ### Server Usage (Optional)
 
@@ -481,6 +517,11 @@ pokedo/
 ├── cli/           # Command-line interface
 ├── core/          # Business logic and models
 ├── data/          # Database and API clients
+├── tui/           # Terminal user interface (Textual)
+│   ├── app.py         # Main TUI application
+│   ├── screens/       # Screen classes (tasks, etc.)
+│   ├── widgets/       # Reusable UI components
+│   └── styles/        # Textual CSS styling
 └── utils/         # Configuration and helpers
 ```
 
