@@ -147,6 +147,19 @@ def display_pokemon(pokemon: Pokemon, detailed: bool = False) -> None:
         if pokemon.can_evolve and pokemon.evolution_id:
             content += "\n[green]Ready to evolve![/green]"
 
+        # Show stats with EVs and IVs
+        stats = pokemon.stats
+        content += "\n\n[bold]Stats[/bold]"
+        stat_names = {"hp": "HP", "atk": "Atk", "def": "Def", "spa": "SpA", "spd": "SpD", "spe": "Spe"}
+        for stat_key, stat_label in stat_names.items():
+            stat_val = stats.get(stat_key, 0)
+            ev_val = pokemon.evs.get(stat_key, 0)
+            iv_val = pokemon.ivs.get(stat_key, 0)
+            content += f"\n{stat_label:>3}: {stat_val:>3}  ({ev_val:>3} EV / {iv_val:>2} IV)"
+
+        total_evs = 510 - pokemon.remaining_evs
+        content += f"\n\n[dim]Total EVs:[/dim] {total_evs}/510"
+
     console.print(Panel(content, box=box.ROUNDED))
 
 

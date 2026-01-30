@@ -34,7 +34,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Catch Pokemon by completing tasks
 - **All 1025 Pokemon** from Gen 1 (Kanto) through Gen 9 (Paldea)
 - Pokemon rarity based on task difficulty
-- Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training (partial implementation)
+- Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training with calculated stats display
 - Shiny Pokemon (rare variants with boosted rates from streaks)
 - Legendary, Mythical, Pseudo-Legendary, and Ultra Beast encounters
 - Paradox Pokemon from Scarlet/Violet
@@ -374,9 +374,9 @@ Wellbeing actions also affect type encounters:
 - **Pokedex tracking parity**: Every catch or evolution increments `pokedex_seen`/`pokedex_caught` (with first-caught timestamps and shiny flags), keeping trainer completion metrics in sync (`pokedo/cli/commands/tasks.py`, `pokedo/cli/commands/pokemon.py`).
 - **Priority ordering & streak sync**: Task listings now sort using explicit numeric weights, and streak best counters update immediately on first-day or resumed streaks (`pokedo/data/database.py`, `pokedo/core/trainer.py`).
 
-### EV/IV System (In Progress)
+### EV/IV System
 
-This system introduces deeper RPG mechanics for training your Pokemon's stats:
+This system provides RPG mechanics for training your Pokemon's stats:
 
 - **IVs (Individual Values):** Represents a Pokemon's innate potential (0-31 per stat), assigned randomly at capture.
 - **EVs (Effort Values):** Training points gained by completing tasks (max 510 total, 252 per stat).

@@ -182,6 +182,17 @@ class Database:
                 except sqlite3.OperationalError:
                     pass  # Column likely exists
 
+            # Migration: Add base_stats column to pokemon and pokedex tables
+            try:
+                cursor.execute("ALTER TABLE pokemon ADD COLUMN base_stats TEXT DEFAULT '{}'")
+            except sqlite3.OperationalError:
+                pass  # Column likely exists
+
+            try:
+                cursor.execute("ALTER TABLE pokedex ADD COLUMN base_stats TEXT DEFAULT '{}'")
+            except sqlite3.OperationalError:
+                pass  # Column likely exists
+
             # Migration: Add trainer_id columns and backfill existing rows
             default_trainer_id = self._ensure_default_trainer_id_for_migration(cursor)
             for table_name in (
@@ -594,7 +605,7 @@ class Database:
                     """
                     UPDATE pokemon SET
                         nickname = ?, level = ?, xp = ?, happiness = ?, evs = ?, ivs = ?,
-                        is_active = ?, is_favorite = ?, can_evolve = ?
+                        base_stats = ?, is_active = ?, is_favorite = ?, can_evolve = ?
                     WHERE id = ? AND trainer_id = ?
                 """,
                     (
@@ -604,6 +615,7 @@ class Database:
                         pokemon.happiness,
                         json.dumps(pokemon.evs),
                         json.dumps(pokemon.ivs),
+                        json.dumps(pokemon.base_stats),
                         int(pokemon.is_active),
                         int(pokemon.is_favorite),
                         int(pokemon.can_evolve),
@@ -615,10 +627,10 @@ class Database:
                 cursor.execute(
                     """
                     INSERT INTO pokemon (trainer_id, pokedex_id, name, nickname, type1, type2,
-                        level, xp, happiness, evs, ivs, caught_at, is_shiny, catch_location,
+                        level, xp, happiness, evs, ivs, base_stats, caught_at, is_shiny, catch_location,
                         is_active, is_favorite, can_evolve, evolution_id,
                         evolution_level, evolution_method, sprite_url, sprite_path)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         resolved_trainer_id,
@@ -632,6 +644,7 @@ class Database:
                         pokemon.happiness,
                         json.dumps(pokemon.evs),
                         json.dumps(pokemon.ivs),
+                        json.dumps(pokemon.base_stats),
                         pokemon.caught_at.isoformat(),
                         int(pokemon.is_shiny),
                         pokemon.catch_location,
@@ -724,6 +737,11 @@ class Database:
                 if "ivs" in row.keys() and row["ivs"]
                 else {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
             ),
+            base_stats=(
+                json.loads(row["base_stats"])
+                if "base_stats" in row.keys() and row["base_stats"]
+                else {"hp": 50, "atk": 50, "def": 50, "spa": 50, "spd": 50, "spe": 50}
+            ),
             caught_at=datetime.fromisoformat(row["caught_at"]),
             is_shiny=bool(row["is_shiny"]),
             catch_location=row["catch_location"],
@@ -746,10 +764,10 @@ class Database:
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO pokedex (
-                    trainer_id, pokedex_id, name, type1, type2,
+                    trainer_id, pokedex_id, name, type1, type2, base_stats,
                     is_seen, is_caught, times_caught, first_caught_at, shiny_caught,
                     sprite_url, rarity, evolves_from, evolves_to)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     resolved_trainer_id,
@@ -757,6 +775,7 @@ class Database:
                     entry.name,
                     entry.type1,
                     entry.type2,
+                    json.dumps(entry.base_stats),
                     int(entry.is_seen),
                     int(entry.is_caught),
                     entry.times_caught,
@@ -807,6 +826,11 @@ class Database:
             name=row["name"],
             type1=row["type1"],
             type2=row["type2"],
+            base_stats=(
+                json.loads(row["base_stats"])
+                if "base_stats" in row.keys() and row["base_stats"]
+                else {"hp": 50, "atk": 50, "def": 50, "spa": 50, "spd": 50, "spe": 50}
+            ),
             is_seen=bool(row["is_seen"]),
             is_caught=bool(row["is_caught"]),
             times_caught=row["times_caught"],

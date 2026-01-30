@@ -40,6 +40,9 @@ class Pokemon(BaseModel):
     ivs: dict[str, int] = Field(
         default_factory=lambda: {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
     )
+    base_stats: dict[str, int] = Field(
+        default_factory=lambda: {"hp": 50, "atk": 50, "def": 50, "spa": 50, "spd": 50, "spe": 50}
+    )
 
     # Catch info
     caught_at: datetime = Field(default_factory=datetime.now)
@@ -76,6 +79,26 @@ class Pokemon(BaseModel):
     def remaining_evs(self) -> int:
         """Calculate remaining EV points (max 510 total)."""
         return 510 - sum(self.evs.values())
+
+    def calculate_stat(self, stat_name: str) -> int:
+        """Calculate actual stat value using the Pokemon formula.
+
+        HP: ((2 * base + iv + ev/4) * level / 100) + level + 10
+        Other: ((2 * base + iv + ev/4) * level / 100) + 5
+        """
+        base = self.base_stats.get(stat_name, 50)
+        iv = self.ivs.get(stat_name, 0)
+        ev = self.evs.get(stat_name, 0)
+
+        if stat_name == "hp":
+            return int((2 * base + iv + ev // 4) * self.level / 100) + self.level + 10
+        else:
+            return int((2 * base + iv + ev // 4) * self.level / 100) + 5
+
+    @property
+    def stats(self) -> dict[str, int]:
+        """Get all calculated stats."""
+        return {stat: self.calculate_stat(stat) for stat in ["hp", "atk", "def", "spa", "spd", "spe"]}
 
     def add_evs(self, stat: str, amount: int) -> int:
         """
@@ -154,6 +177,11 @@ class PokedexEntry(BaseModel):
     name: str
     type1: str
     type2: str | None = None
+
+    # Base stats for the species
+    base_stats: dict[str, int] = Field(
+        default_factory=lambda: {"hp": 50, "atk": 50, "def": 50, "spa": 50, "spd": 50, "spe": 50}
+    )
 
     # Catch tracking
     is_seen: bool = False

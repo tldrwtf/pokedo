@@ -253,6 +253,134 @@ class TestPokemonIVs:
             assert 0 <= val <= 31
 
 
+class TestPokemonStats:
+    """Tests for Pokemon stat calculation."""
+
+    def test_stats_property_returns_all_stats(self, sample_pokemon):
+        """Stats property returns all 6 stats."""
+        stats = sample_pokemon.stats
+        assert "hp" in stats
+        assert "atk" in stats
+        assert "def" in stats
+        assert "spa" in stats
+        assert "spd" in stats
+        assert "spe" in stats
+
+    def test_hp_calculation_level_1(self):
+        """HP at level 1 with default base stats (50) and no EVs/IVs."""
+        pokemon = Pokemon(pokedex_id=1, name="test", type1="normal", level=1)
+        # HP = ((2*50 + 0 + 0) * 1 / 100) + 1 + 10 = 1 + 1 + 10 = 12
+        assert pokemon.stats["hp"] == 12
+
+    def test_hp_calculation_level_50(self):
+        """HP at level 50 with default base stats."""
+        pokemon = Pokemon(pokedex_id=1, name="test", type1="normal", level=50)
+        # HP = ((2*50 + 0 + 0) * 50 / 100) + 50 + 10 = 50 + 50 + 10 = 110
+        assert pokemon.stats["hp"] == 110
+
+    def test_other_stat_calculation_level_1(self):
+        """Non-HP stat at level 1 with default base stats."""
+        pokemon = Pokemon(pokedex_id=1, name="test", type1="normal", level=1)
+        # Stat = ((2*50 + 0 + 0) * 1 / 100) + 5 = 1 + 5 = 6
+        assert pokemon.stats["atk"] == 6
+
+    def test_other_stat_calculation_level_50(self):
+        """Non-HP stat at level 50 with default base stats."""
+        pokemon = Pokemon(pokedex_id=1, name="test", type1="normal", level=50)
+        # Stat = ((2*50 + 0 + 0) * 50 / 100) + 5 = 50 + 5 = 55
+        assert pokemon.stats["atk"] == 55
+
+    def test_stats_with_custom_base_stats(self):
+        """Stats calculated correctly with custom base stats."""
+        pokemon = Pokemon(
+            pokedex_id=25,
+            name="pikachu",
+            type1="electric",
+            level=50,
+            base_stats={"hp": 35, "atk": 55, "def": 40, "spa": 50, "spd": 50, "spe": 90},
+        )
+        # HP = ((2*35 + 0 + 0) * 50 / 100) + 50 + 10 = 35 + 50 + 10 = 95
+        assert pokemon.stats["hp"] == 95
+        # Spe = ((2*90 + 0 + 0) * 50 / 100) + 5 = 90 + 5 = 95
+        assert pokemon.stats["spe"] == 95
+
+    def test_stats_with_max_ivs(self):
+        """Stats calculated correctly with max IVs."""
+        pokemon = Pokemon(
+            pokedex_id=1,
+            name="test",
+            type1="normal",
+            level=50,
+            ivs={"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+        )
+        # HP = ((2*50 + 31 + 0) * 50 / 100) + 50 + 10 = 65 + 50 + 10 = 125
+        assert pokemon.stats["hp"] == 125
+        # Atk = ((2*50 + 31 + 0) * 50 / 100) + 5 = 65 + 5 = 70
+        assert pokemon.stats["atk"] == 70
+
+    def test_stats_with_max_evs(self):
+        """Stats calculated correctly with max EVs."""
+        pokemon = Pokemon(
+            pokedex_id=1,
+            name="test",
+            type1="normal",
+            level=50,
+            evs={"hp": 252, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 0},
+        )
+        # HP = ((2*50 + 0 + 63) * 50 / 100) + 50 + 10 = 81 + 50 + 10 = 141
+        # Note: 252 // 4 = 63
+        assert pokemon.stats["hp"] == 141
+        # Atk = ((2*50 + 0 + 63) * 50 / 100) + 5 = 81 + 5 = 86
+        assert pokemon.stats["atk"] == 86
+
+    def test_stats_with_evs_and_ivs(self):
+        """Stats calculated correctly with both EVs and IVs."""
+        pokemon = Pokemon(
+            pokedex_id=1,
+            name="test",
+            type1="normal",
+            level=50,
+            ivs={"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+            evs={"hp": 252, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 252},
+        )
+        # HP = ((2*50 + 31 + 63) * 50 / 100) + 50 + 10 = 97 + 50 + 10 = 157
+        assert pokemon.stats["hp"] == 157
+        # Spe = ((2*50 + 31 + 63) * 50 / 100) + 5 = 97 + 5 = 102
+        assert pokemon.stats["spe"] == 102
+
+    def test_stats_level_100(self):
+        """Stats at level 100."""
+        pokemon = Pokemon(
+            pokedex_id=1,
+            name="test",
+            type1="normal",
+            level=100,
+            base_stats={"hp": 100, "atk": 100, "def": 100, "spa": 100, "spd": 100, "spe": 100},
+            ivs={"hp": 31, "atk": 31, "def": 31, "spa": 31, "spd": 31, "spe": 31},
+            evs={"hp": 252, "atk": 252, "def": 0, "spa": 0, "spd": 0, "spe": 0},
+        )
+        # HP = ((2*100 + 31 + 63) * 100 / 100) + 100 + 10 = 294 + 100 + 10 = 404
+        assert pokemon.stats["hp"] == 404
+        # Atk = ((2*100 + 31 + 63) * 100 / 100) + 5 = 294 + 5 = 299
+        assert pokemon.stats["atk"] == 299
+
+    def test_calculate_stat_method(self):
+        """Test calculate_stat method directly."""
+        pokemon = Pokemon(
+            pokedex_id=1,
+            name="test",
+            type1="normal",
+            level=50,
+            base_stats={"hp": 80, "atk": 80, "def": 80, "spa": 80, "spd": 80, "spe": 80},
+        )
+        hp = pokemon.calculate_stat("hp")
+        atk = pokemon.calculate_stat("atk")
+        # HP = ((2*80 + 0 + 0) * 50 / 100) + 50 + 10 = 80 + 50 + 10 = 140
+        assert hp == 140
+        # Atk = ((2*80 + 0 + 0) * 50 / 100) + 5 = 80 + 5 = 85
+        assert atk == 85
+
+
 class TestPokedexEntry:
     """Tests for PokedexEntry model."""
 

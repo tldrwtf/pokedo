@@ -215,6 +215,16 @@ PARADOX_IDS = {
     1010,
 }
 
+# Mapping from PokeAPI stat names to internal stat abbreviations
+STAT_NAME_MAP = {
+    "hp": "hp",
+    "attack": "atk",
+    "defense": "def",
+    "special-attack": "spa",
+    "special-defense": "spd",
+    "speed": "spe",
+}
+
 
 class PokeAPIClient:
     """Client for interacting with PokeAPI."""
@@ -374,11 +384,15 @@ class PokeAPIClient:
                 from_url = species_data["evolves_from_species"]["url"]
                 evolves_from = int(from_url.rstrip("/").split("/")[-1])
 
+        # Extract base stats
+        base_stats = self._extract_base_stats(pokemon_data)
+
         return PokedexEntry(
             pokedex_id=pokemon_id,
             name=pokemon_data["name"],
             type1=type1,
             type2=type2,
+            base_stats=base_stats,
             sprite_url=self.get_sprite_url(pokemon_id),
             rarity=rarity,
             evolves_from=evolves_from,
@@ -419,11 +433,15 @@ class PokeAPIClient:
                 evolution_level = evo_info.get("min_level")
                 evolution_method = evo_info.get("method")
 
+        # Extract base stats
+        base_stats = self._extract_base_stats(pokemon_data)
+
         return Pokemon(
             pokedex_id=pokemon_id,
             name=pokemon_data["name"],
             type1=type1,
             type2=type2,
+            base_stats=base_stats,
             is_shiny=is_shiny,
             catch_location=catch_location,
             sprite_url=self.get_sprite_url(pokemon_id, is_shiny),
@@ -432,6 +450,19 @@ class PokeAPIClient:
             evolution_method=evolution_method,
             caught_at=datetime.now(),
         )
+
+    def _extract_base_stats(self, pokemon_data: dict) -> dict[str, int]:
+        """Extract base stats from PokeAPI response."""
+        base_stats = {"hp": 50, "atk": 50, "def": 50, "spa": 50, "spd": 50, "spe": 50}
+
+        stats_list = pokemon_data.get("stats", [])
+        for stat_entry in stats_list:
+            api_stat_name = stat_entry.get("stat", {}).get("name", "")
+            internal_name = STAT_NAME_MAP.get(api_stat_name)
+            if internal_name:
+                base_stats[internal_name] = stat_entry.get("base_stat", 50)
+
+        return base_stats
 
     def _classify_rarity(self, pokemon_id: int, species_data: dict | None) -> PokemonRarity:
         """Classify Pokemon rarity based on its characteristics."""
