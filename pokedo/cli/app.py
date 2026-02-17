@@ -97,6 +97,18 @@ def pokedex_shortcut() -> None:
     pokemon.render_pokedex(auto_focus=True)
 
 
+@app.command("sprite")
+def sprite_shortcut(
+    identifier: str = typer.Argument(
+        ..., help="Pokemon name or Pokedex number (e.g. 'pikachu' or '25')"
+    ),
+    shiny: bool = typer.Option(False, "--shiny", "-s", help="Show shiny variant"),
+    bg: str = typer.Option(None, "--bg", help="Background hex color (e.g. '#1e1e2e')"),
+) -> None:
+    """Preview a Pokemon sprite in the terminal."""
+    pokemon.show_sprite(identifier, shiny, bg)
+
+
 @app.command("version")
 def show_version() -> None:
     """Show version information."""

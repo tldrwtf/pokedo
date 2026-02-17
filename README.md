@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.3.2.1 | **License:** MIT | **Python:** 3.10+ 
+**Version:** 3.3 | **License:** MIT | **Python:** 3.10+ 
 
 ![CI](https://github.com/tldrwtf/pokedo/actions/workflows/ci.yml/badge.svg?branch=main) ![Version](https://badgen.net/github/release/tldrwtf/pokedo/stable)
 
@@ -33,6 +33,7 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 
 - Catch Pokemon by completing tasks
 - **All 1025 Pokemon** from Gen 1 (Kanto) through Gen 9 (Paldea)
+- **Terminal sprite preview** -- view any Pokemon sprite rendered in true color right in your terminal
 - Pokemon rarity based on task difficulty
 - Pokemon **EVs (Effort Values) and IVs (Individual Values)** for stat training with calculated stats display
 - Shiny Pokemon (rare variants with boosted rates from streaks)
@@ -160,6 +161,12 @@ pokedo pokemon box
 pokedo pokedex
 pokedo pokemon pokedex --caught
 pokedo pokemon pokedex --gen 3  # Filter by generation
+
+# Preview a Pokemon sprite in the terminal
+pokedo sprite pikachu
+pokedo pokemon sprite 25
+pokedo pokemon sprite charizard --shiny
+pokedo sprite eevee --bg '#1e1e2e'  # Custom background color
 
 # Manage team
 pokedo pokemon set-active 5
