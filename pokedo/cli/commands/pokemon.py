@@ -1,5 +1,6 @@
 """Pokemon management CLI commands."""
 
+import asyncio
 from datetime import datetime
 
 import typer
@@ -10,7 +11,7 @@ from rich.table import Table
 
 from pokedo.cli.ui.displays import TYPE_COLORS, display_pokemon, display_pokemon_list
 from pokedo.data.database import db
-from pokedo.data.pokeapi import create_pokemon_sync
+from pokedo.data.pokeapi import create_pokemon_sync, pokeapi
 
 app = typer.Typer(help="Pokemon management commands")
 console = Console()
@@ -327,3 +328,102 @@ def evolve_pokemon(pokemon_id: int = typer.Argument(..., help="Pokemon ID to evo
         f"[bold green]{pokemon.display_name} evolved into {evolved.name.upper()}![/bold green]"
     )
     display_pokemon(evolved)
+
+
+def _resolve_pokemon_identifier(identifier: str) -> int | None:
+    """Resolve a Pokemon name or Pokedex number to a Pokedex ID.
+
+    Accepts:
+        - A numeric string (e.g. "25") interpreted as Pokedex number.
+        - A name string (e.g. "pikachu") looked up via the local Pokedex
+          first, then falling back to the PokeAPI.
+
+    Returns:
+        The Pokedex ID, or None if the Pokemon could not be found.
+    """
+    # Direct numeric ID
+    if identifier.isdigit():
+        return int(identifier)
+
+    name = identifier.strip().lower()
+
+    # Search local Pokedex entries first
+    entries = db.get_pokedex()
+    for entry in entries:
+        if entry.name.lower() == name:
+            return entry.pokedex_id
+
+    # Fallback: query PokeAPI by name (the API accepts lowercase names)
+    import httpx
+    from pokedo.utils.config import config
+
+    try:
+        resp = httpx.get(f"{config.pokeapi_base_url}/pokemon/{name}", timeout=10)
+        if resp.status_code == 200:
+            return resp.json().get("id")
+    except Exception:
+        pass
+
+    return None
+
+
+@app.command("sprite")
+def show_sprite(
+    identifier: str = typer.Argument(
+        ..., help="Pokemon name or Pokedex number (e.g. 'pikachu' or '25')"
+    ),
+    shiny: bool = typer.Option(False, "--shiny", "-s", help="Show shiny variant"),
+    bg: str = typer.Option(None, "--bg", help="Background hex color (e.g. '#1e1e2e')"),
+) -> None:
+    """Display a Pokemon sprite preview in the terminal.
+
+    Accepts a Pokemon name (case-insensitive) or Pokedex number.
+    Use --shiny to see the shiny variant.
+
+    Examples:
+        pokedo pokemon sprite pikachu
+        pokedo pokemon sprite 25 --shiny
+        pokedo pokemon sprite charizard --bg '#1e1e2e'
+    """
+    from pokedo.utils.sprites import display_sprite
+
+    pokedex_id = _resolve_pokemon_identifier(identifier)
+    if pokedex_id is None:
+        console.print(f"[red]Could not find Pokemon '{identifier}'.[/red]")
+        raise typer.Exit(1)
+
+    # Download / retrieve cached sprite
+    with console.status("[dim]Fetching sprite...[/dim]"):
+        sprite_path = asyncio.run(pokeapi.download_sprite(pokedex_id, is_shiny=shiny))
+
+    if sprite_path is None or not sprite_path.exists():
+        console.print("[red]Could not download sprite. Check your internet connection.[/red]")
+        raise typer.Exit(1)
+
+    # Build display title
+    # Try to get the name from the Pokedex or identifier
+    entry = db.get_pokedex_entry(pokedex_id)
+    if entry:
+        name = entry.name.capitalize()
+    else:
+        name = identifier.capitalize() if not identifier.isdigit() else "Pokemon"
+
+    shiny_label = " [yellow](Shiny)[/yellow]" if shiny else ""
+    title = f"#{pokedex_id:04d} {name}{shiny_label}"
+
+    # Resolve type for subtitle
+    type_info = ""
+    if entry:
+        type_color = TYPE_COLORS.get(entry.type1, "white")
+        type_info = f"[{type_color}]{entry.type1.capitalize()}[/{type_color}]"
+        if entry.type2:
+            type2_color = TYPE_COLORS.get(entry.type2, "white")
+            type_info += f" / [{type2_color}]{entry.type2.capitalize()}[/{type2_color}]"
+
+    display_sprite(
+        sprite_path,
+        title=title,
+        bg_color=bg,
+        subtitle=type_info or None,
+        console=console,
+    )
