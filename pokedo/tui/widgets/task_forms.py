@@ -280,10 +280,10 @@ class EditTaskModal(ModalScreen[Task | None]):
 
     def __init__(self, task: Task):
         super().__init__()
-        self._task = task
+        self._editing_task = task
 
     def compose(self) -> ComposeResult:
-        task = self._task
+        task = self._editing_task
 
         with Container(id="edit-task-dialog"):
             yield Static(f"[bold]Edit Task #{task.id}[/bold]", id="edit-task-title")
@@ -397,16 +397,16 @@ class EditTaskModal(ModalScreen[Task | None]):
             ]
 
             # Update the task with new values
-            self._task.title = title
-            self._task.description = description
-            self._task.category = category
-            self._task.difficulty = difficulty
-            self._task.priority = priority
-            self._task.due_date = due_date
-            self._task.recurrence = recurrence
-            self._task.tags = tags
+            self._editing_task.title = title
+            self._editing_task.description = description
+            self._editing_task.category = category
+            self._editing_task.difficulty = difficulty
+            self._editing_task.priority = priority
+            self._editing_task.due_date = due_date
+            self._editing_task.recurrence = recurrence
+            self._editing_task.tags = tags
 
-            self.dismiss(self._task)
+            self.dismiss(self._editing_task)
 
     def on_key(self, event) -> None:
         if event.key == "escape":

@@ -105,21 +105,21 @@ class TaskDetailPanel(Static):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._task: Task | None = None
+        self._detail_task: Task | None = None
 
     def set_task(self, task: Task | None) -> None:
         """Set the task to display."""
-        self._task = task
+        self._detail_task = task
         self.refresh_content()
 
     def refresh_content(self) -> None:
         """Refresh the panel content."""
-        if self._task is None:
+        if self._detail_task is None:
             content = "[dim]Select a task to view details[/dim]"
             self.update(Panel(content, title="Task Details", box=ROUNDED))
             return
 
-        task = self._task
+        task = self._detail_task
         diff_color = DIFFICULTY_COLORS.get(task.difficulty.value, "white")
         priority_style = PRIORITY_COLORS.get(task.priority.value, "white")
 

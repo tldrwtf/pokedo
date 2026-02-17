@@ -451,6 +451,12 @@ For more development information, see:
 - Run `pokedo init --name "YourName"` to initialize the database
 - Check write permissions in your home directory
 
+**`TypeError: cannot use 'pokedo.core.task.Task' as a dict key (unhashable type: 'Task')` in TUI**
+
+- Cause: a Textual widget/screen used `self._task` for a domain `Task`, which conflicts with Textual's internal `Widget._task` asyncio lifecycle field.
+- Fixed in current code by renaming state fields to domain-specific names like `_detail_task`, `_editing_task`, and `_completed_task`.
+- For future TUI changes, do not store app models in `self._task`; always use explicit names such as `_selected_task` or `_editing_task`.
+
 **Slow initialization**
 
 - Full initialization downloads data for 1025 Pokemon

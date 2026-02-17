@@ -91,6 +91,7 @@ The CLI layer handles all user interaction through the Typer framework.
 **TUI Layer (`tui/`)**
 - `app.py`: Textual-based dashboard for trainer, tasks, and team summaries
 - Uses the same data access layer (`data/`) for read-only views
+- Textual lifecycle internals are reserved: do not use `self._task` for domain objects in widgets/screens/modals. Use explicit names like `self._selected_task` or `self._editing_task`.
 
 ### Server Layer (`server.py`)
 

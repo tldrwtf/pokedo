@@ -141,6 +141,12 @@ pokedo/
 - Keep functions focused and under 50 lines when possible
 - Use descriptive variable names
 
+### Textual Naming Safety
+
+- In Textual widgets/screens/modals, treat `self._task` as reserved for Textual internals.
+- Never store `pokedo.core.task.Task` (or any domain model) in `self._task`.
+- Use explicit state names such as `self._selected_task`, `self._detail_task`, `self._editing_task`, or `self._completed_task` to avoid lifecycle teardown errors.
+
 ### Type Hints
 
 ```python

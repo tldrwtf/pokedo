@@ -41,6 +41,16 @@ pip install -e ".[dev]"
     pokedo pokemon box
     ```
 
+## Running the TUI
+
+Launch the interactive Textual interface:
+
+```bash
+pokedo tui
+```
+
+Use `t` to open task management and `Escape` to return to the dashboard.
+
 ## Running the Server
 
 To test the synchronization features, you can run the local FastAPI development server.
@@ -81,3 +91,4 @@ pytest
 
 - The application uses a local-first SQLite database by default (`~/.pokedo/pokedo.db`).
 - If you are working on the Sync client, remember to initialize the sync table: `python -m pokedo.data.sync init`.
+- For Textual development, avoid using `self._task` for domain models in widgets/screens/modals. `_task` is reserved by Textual internals; use explicit names like `self._selected_task` or `self._editing_task`.

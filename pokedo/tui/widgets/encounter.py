@@ -111,11 +111,11 @@ class TaskCompletionModal(ModalScreen[None]):
 
     def __init__(self, task: Task, result: EncounterResult):
         super().__init__()
-        self._task = task
+        self._completed_task = task
         self._result = result
 
     def compose(self) -> ComposeResult:
-        task = self._task
+        task = self._completed_task
         result = self._result
 
         with Container(id="completion-dialog"):

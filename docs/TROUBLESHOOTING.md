@@ -26,6 +26,14 @@ Common issues and their fixes while working on PokeDo.
 - **Symptom:** `pokedo pokedex` shows empty data even after initializing.
 - **Fix:** Run `pokedo init --quick` again; ensure the PokeAPI requests succeeded and check for networking issues.
 
+## TUI Issues
+
+### Textual `_task` Name Collision
+
+- **Symptom:** Exiting the task screen raises `TypeError: cannot use 'pokedo.core.task.Task' as a dict key (unhashable type: 'Task')`.
+- **Cause:** A widget/screen attribute named `self._task` was used for a domain `Task` object. In Textual, `_task` is an internal async lifecycle field and must remain an `asyncio.Task`.
+- **Fix:** Rename app state attributes to explicit names such as `self._detail_task`, `self._editing_task`, `self._completed_task`, or `self._selected_task`. Do not use `self._task` in Textual components for domain data.
+
 ## Testing Problems
 
 ### Pytest Missing
