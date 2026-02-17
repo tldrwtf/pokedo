@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.3.2 | **License:** MIT | **Python:** 3.10+ 
+**Version:** 0.3.2.1 | **License:** MIT | **Python:** 3.10+ 
 
 ![CI](https://github.com/tldrwtf/pokedo/actions/workflows/ci.yml/badge.svg?branch=main) ![Version](https://badgen.net/github/release/tldrwtf/pokedo/stable)
 
