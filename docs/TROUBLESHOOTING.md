@@ -46,6 +46,33 @@ Common issues and their fixes while working on PokeDo.
 - **Symptom:** Tests modify your real `~/.pokedo` database.
 - **Fix:** Use the `isolated_db` fixture from `tests/conftest.py` and avoid importing the global `db` outside fixtures in tests.
 
+### Server Tests Failing with Postgres Errors
+
+- **Symptom:** `test_server.py` tries to connect to PostgreSQL and fails.
+- **Fix:** Server tests use in-memory SQLite with `StaticPool`. If you see Postgres connection errors, ensure you are not overriding `POKEDO_DATABASE_URL` in your environment. The test fixtures handle database setup automatically.
+
+## Server / Multiplayer Issues
+
+### Cannot Connect to Server
+
+- **Symptom:** `ConnectionRefusedError` when running battle commands.
+- **Fix:** Make sure the server is running (`uvicorn pokedo.server:app --port 8000` or `docker-compose up -d`). Check that `POKEDO_SERVER_URL` is set correctly if not using the default `http://localhost:8000`.
+
+### PostgreSQL Connection Refused
+
+- **Symptom:** Server fails to start with `Connection refused` to port 5432.
+- **Fix:** Start the database with `docker-compose up -d db` and wait a few seconds for it to initialize. Verify `POKEDO_DATABASE_URL` matches your Docker setup (default: `postgresql://pokedo:pokedopass@localhost:5432/pokedo`).
+
+### JWT Token Expired
+
+- **Symptom:** `401 Unauthorized` when making authenticated requests.
+- **Fix:** Re-authenticate via `POST /token` to get a fresh access token. The default expiry is 30 minutes.
+
+### Battle Stuck in Pending State
+
+- **Symptom:** Battle was challenged but never moved to active.
+- **Fix:** The opponent must accept (`POST /battles/{id}/accept`), then both players must submit teams (`POST /battles/{id}/team`). The battle only becomes active once both teams are submitted.
+
 ## Pydantic Model Errors
 
 ### FieldInfo clashes
@@ -61,5 +88,6 @@ Common issues and their fixes while working on PokeDo.
 ## Getting Support
 
 - Re-read `docs/CONTRIBUTING.md` for setup steps.
+- See `docs/MULTIPLAYER.md` for battle system details.
 - Check open issues in the repository for similar problems.
 - When filing a new issue, include OS, Python version, and exact command output.

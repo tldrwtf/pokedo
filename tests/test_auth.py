@@ -3,6 +3,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
 
 from pokedo.core.auth import (
     ALGORITHM,
@@ -11,15 +13,33 @@ from pokedo.core.auth import (
     get_password_hash,
     verify_password,
 )
-from pokedo.server import app, fake_users_db
-
-client = TestClient(app)
+from pokedo.server import app, _get_db
 
 
-@pytest.fixture(autouse=True)
-def clear_db():
-    """Clear the mock database before each test."""
-    fake_users_db.clear()
+@pytest.fixture(name="session")
+def session_fixture():
+    """Create a fresh in-memory SQLite database for each test."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+
+
+@pytest.fixture(name="client")
+def client_fixture(session: Session):
+    """Return a TestClient whose DB dependency is overridden with the test session."""
+
+    def override_get_db():
+        yield session
+
+    app.dependency_overrides[_get_db] = override_get_db
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
 
 
 class TestAuthUtils:
@@ -45,7 +65,7 @@ class TestAuthUtils:
 class TestAuthEndpoints:
     """Tests for authentication API endpoints."""
 
-    def test_register_user(self):
+    def test_register_user(self, client: TestClient):
         """Test user registration."""
         response = client.post(
             "/register",
@@ -55,9 +75,8 @@ class TestAuthEndpoints:
         data = response.json()
         assert data["username"] == "newuser"
         assert "password" not in data  # Should not return password
-        assert "newuser" in fake_users_db
 
-    def test_register_duplicate_user(self):
+    def test_register_duplicate_user(self, client: TestClient):
         """Test registering a duplicate username."""
         client.post(
             "/register",
@@ -70,10 +89,8 @@ class TestAuthEndpoints:
         assert response.status_code == 400
         assert response.json()["detail"] == "Username already registered"
 
-    def test_login_success(self):
+    def test_login_success(self, client: TestClient):
         """Test successful login."""
-        # specific setup for this test
-        fake_users_db.clear()
         client.post(
             "/register",
             json={"username": "loginuser", "password": "password123"},
@@ -88,7 +105,7 @@ class TestAuthEndpoints:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
 
-    def test_login_failure(self):
+    def test_login_failure(self, client: TestClient):
         """Test login with wrong password."""
         client.post(
             "/register",
@@ -105,12 +122,12 @@ class TestAuthEndpoints:
 class TestProtectedEndpoints:
     """Tests for protected endpoints."""
 
-    def test_sync_unauthorized(self):
+    def test_sync_unauthorized(self, client: TestClient):
         """Accessing sync without token fails."""
         response = client.post("/sync", json=[])
         assert response.status_code == 401
 
-    def test_sync_authorized(self):
+    def test_sync_authorized(self, client: TestClient):
         """Accessing sync with token succeeds."""
         # Register
         client.post(

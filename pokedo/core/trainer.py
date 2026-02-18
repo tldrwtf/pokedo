@@ -99,6 +99,13 @@ class Trainer(BaseModel):
     daily_streak: Streak = Field(default_factory=lambda: Streak(streak_type="daily"))
     wellbeing_streak: Streak = Field(default_factory=lambda: Streak(streak_type="wellbeing"))
 
+    # PvP / multiplayer stats
+    battle_wins: int = 0
+    battle_losses: int = 0
+    battle_draws: int = 0
+    elo_rating: int = 1000  # Starting ELO
+    pvp_rank: str = "Unranked"  # Derived from ELO
+
     # Badges earned
     badges: list[TrainerBadge] = Field(default_factory=list)
 
@@ -157,6 +164,32 @@ class Trainer(BaseModel):
         """Update daily streak, returns (streak_continued, current_count)."""
         continued = self.daily_streak.update(activity_date)
         return continued, self.daily_streak.current_count
+
+    # --- PvP helpers ---
+
+    @property
+    def battles_fought(self) -> int:
+        """Total battles completed."""
+        return self.battle_wins + self.battle_losses + self.battle_draws
+
+    @property
+    def win_rate(self) -> float:
+        """Win percentage (0-100)."""
+        total = self.battles_fought
+        if total == 0:
+            return 0.0
+        return (self.battle_wins / total) * 100
+
+    def record_battle(self, won: bool, elo_delta: int) -> None:
+        """Record a battle result and adjust ELO."""
+        from pokedo.core.battle import compute_rank
+
+        if won:
+            self.battle_wins += 1
+        else:
+            self.battle_losses += 1
+        self.elo_rating = max(0, self.elo_rating + elo_delta)
+        self.pvp_rank = compute_rank(self.elo_rating)
 
 
 # Predefined badges

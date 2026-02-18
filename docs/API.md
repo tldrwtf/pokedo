@@ -209,6 +209,120 @@ class PokemonTeam(BaseModel):
 
 ---
 
+### Move (`pokedo/core/moves.py`)
+
+```python
+class Move(BaseModel):
+    """Represents a Pokemon battle move."""
+
+    name: str
+    type: str                     # fire, water, electric, ...
+    power: int                    # 0 for status moves
+    accuracy: int                 # 1-100
+    pp: int                       # Power Points (uses)
+    category: str                 # "physical", "special", or "status"
+    priority: int = 0             # Higher goes first (+4 Protect, +1 Quick Attack)
+    drain_percent: int = 0        # Positive = heal, negative = recoil
+    recoil_percent: int = 0       # Percentage of damage dealt taken as recoil
+    status_effect: str | None = None       # burn, poison, paralysis, sleep, freeze, badly_poisoned
+    secondary_effect_chance: int = 0       # % chance of secondary status application
+    secondary_status: str | None = None    # Status applied as secondary effect
+    heals_user: bool = False               # e.g. Recover, Rest
+    is_protect: bool = False               # Protect-like moves
+```
+
+**Key functions:**
+
+```python
+TYPE_CHART: dict[str, dict[str, float]]
+    # 18x18 effectiveness matrix (Normal through Fairy)
+
+NATURE_MODIFIERS: dict[str, dict[str, float]]
+    # 25 natures with +10%/-10% stat modifications
+
+def calculate_damage(
+    attacker: BattlePokemon,
+    defender: BattlePokemon,
+    move: Move,
+    *,
+    critical: bool = False,
+    random_factor: float = 1.0,
+    weather_modifier: float = 1.0,
+) -> int:
+    """Gen V+ damage formula with STAB, type chart, crits, burn halving."""
+
+def generate_default_moveset(pokemon: Pokemon | BattlePokemon, level: int) -> list[Move]:
+    """Generate a level-appropriate moveset (up to 4 moves) from the type pool."""
+```
+
+---
+
+### Battle (`pokedo/core/battle.py`)
+
+```python
+class BattleFormat(str, Enum):
+    SINGLES_1V1 = "singles_1v1"   # 1 Pokemon each
+    SINGLES_3V3 = "singles_3v3"   # 3 Pokemon, one active
+    SINGLES_6V6 = "singles_6v6"   # 6 Pokemon, one active
+
+class BattleStatus(str, Enum):
+    PENDING = "pending"
+    TEAM_SUBMISSION = "team_submission"
+    ACTIVE = "active"
+    FINISHED = "finished"
+
+class BattleActionType(str, Enum):
+    MOVE = "move"
+    SWITCH = "switch"
+    FORFEIT = "forfeit"
+
+class BattlePokemon(BaseModel):
+    """Snapshot of a Pokemon for battle (stats, moves, HP, status)."""
+    name: str
+    nickname: str | None
+    types: list[str]
+    level: int
+    max_hp: int
+    current_hp: int
+    stats: dict[str, int]    # atk, def, spa, spd, spe
+    moves: list[Move]
+    status: str | None       # burn, poison, paralysis, sleep, freeze, badly_poisoned
+    status_turns: int = 0
+    is_protected: bool = False
+
+class BattleTeam(BaseModel):
+    """A player's battle team."""
+    pokemon: list[BattlePokemon]
+    active_index: int = 0
+
+class BattleState(BaseModel):
+    """Full battle state machine."""
+    format: BattleFormat
+    player1_id: str
+    player2_id: str
+    team1: BattleTeam | None
+    team2: BattleTeam | None
+    status: BattleStatus
+    turn: int
+    winner_id: str | None
+    pending_actions: dict[str, dict]
+    turn_history: list[list[dict]]
+    is_draw: bool = False
+
+class BattleEngine:
+    @staticmethod
+    def resolve_turn(state: BattleState) -> list[TurnEvent]:
+        """Resolve one turn: forfeits -> switches -> attacks (priority) -> end-of-turn."""
+
+def calculate_elo_change(winner_elo: int, loser_elo: int, k: int = 32) -> tuple[int, int]:
+    """Compute ELO deltas for winner and loser."""
+
+def compute_rank(elo: int) -> str:
+    """Map ELO rating to rank name (Youngster through Pokemon Master)."""
+```
+
+---
+
 ### Trainer (`pokedo/core/trainer.py`)
 
 #### TrainerBadge Model
@@ -269,18 +383,28 @@ class Streak(BaseModel):
 class Trainer(BaseModel):
     """Represents the player's profile."""
 
-    id: int = 1
-    name: str
+    id: int | None = None
+    name: str = "Trainer"
+    trainer_class: TrainerClass = TrainerClass.ACE_TRAINER
     created_at: datetime = Field(default_factory=datetime.now)
     total_xp: int = 0
     tasks_completed: int = 0
+    tasks_completed_today: int = 0
     pokemon_caught: int = 0
     pokemon_released: int = 0
     evolutions_triggered: int = 0
     pokedex_seen: int = 0
     pokedex_caught: int = 0
-    daily_streak: Streak = Field(default_factory=Streak)
-    wellbeing_streak: Streak = Field(default_factory=Streak)
+    daily_streak: Streak = Field(default_factory=lambda: Streak(streak_type="daily"))
+    wellbeing_streak: Streak = Field(default_factory=lambda: Streak(streak_type="wellbeing"))
+
+    # PvP / multiplayer stats
+    battle_wins: int = 0
+    battle_losses: int = 0
+    battle_draws: int = 0
+    elo_rating: int = 1000      # Starting ELO
+    pvp_rank: str = "Unranked"  # Derived from ELO via compute_rank()
+
     badges: list[TrainerBadge] = Field(default_factory=list)
     inventory: dict[str, int] = Field(default_factory=dict)
     favorite_pokemon_id: int | None = None
@@ -291,27 +415,30 @@ class Trainer(BaseModel):
         """Calculate trainer level from XP."""
 
     @property
-    def xp_for_current_level(self) -> int:
-        """Get XP progress within current level."""
+    def xp_progress(self) -> tuple[int, int]:
+        """Get XP progress to next level (current, needed)."""
 
-    @property
-    def xp_for_next_level(self) -> int:
-        """Get total XP needed for next level."""
+    def add_xp(self, amount: int) -> int:
+        """Add XP and return new level if leveled up, else 0."""
 
-    def add_xp(self, amount: int) -> bool:
-        """Add XP and return True if leveled up."""
-
-    def add_item(self, item: str, quantity: int = 1) -> None:
+    def add_item(self, item: str, count: int = 1) -> None:
         """Add item to inventory."""
 
     def use_item(self, item: str) -> bool:
         """Use item from inventory. Returns False if not available."""
 
-    def has_badge(self, badge_id: str) -> bool:
-        """Check if badge is earned."""
+    # --- PvP helpers ---
 
-    def award_badge(self, badge_id: str) -> TrainerBadge | None:
-        """Award badge if not already earned."""
+    @property
+    def battles_fought(self) -> int:
+        """Total battles completed (wins + losses + draws)."""
+
+    @property
+    def win_rate(self) -> float:
+        """Win percentage (0-100)."""
+
+    def record_battle(self, won: bool, elo_delta: int) -> None:
+        """Record a battle result, adjust ELO, and recompute rank."""
 ```
 
 ---
@@ -868,26 +995,86 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 ### Endpoints (`pokedo/server.py`)
 
-| Method | Path | Description | Auth Required |
-|--------|------|-------------|---------------|
-| POST | `/register` | Register a new user. | No |
-| POST | `/token` | Login and get access token. | No |
-| GET | `/users/me` | Get current user profile. | Yes |
-| POST | `/sync` | Sync local changes to server. | Yes |
+The server uses the FastAPI `lifespan` context manager (not the deprecated `@app.on_event`).
 
-#### Models
+#### Authentication
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/register` | Register a new user | No |
+| POST | `/token` | Login (returns JWT) | No |
+| GET | `/health` | Health check | No |
+| GET | `/users/me` | Current user profile | Yes |
+
+#### Sync
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/sync` | Push local changes to server | Yes |
+
+#### Battles
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/battles/challenge` | Send a battle challenge | Yes |
+| GET | `/battles/pending` | List pending/active battles | Yes |
+| POST | `/battles/{id}/accept` | Accept a challenge | Yes |
+| POST | `/battles/{id}/decline` | Decline a challenge | Yes |
+| POST | `/battles/{id}/team` | Submit team for a battle | Yes |
+| POST | `/battles/{id}/action` | Submit turn action (move/switch/forfeit) | Yes |
+| GET | `/battles/{id}` | Get battle state (censored for opponent) | Yes |
+| GET | `/battles/{id}/history` | Turn event log | Yes |
+| GET | `/battles/history/me` | Completed battle history | Yes |
+
+#### Leaderboard
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/leaderboard` | Global rankings (sortable) | No |
+| GET | `/leaderboard/{username}` | Individual player stats | No |
+
+#### Server Models
 
 ```python
-class User(BaseModel):
+class ServerUser(SQLModel, table=True):
+    """Postgres-backed user account."""
+    id: str          # UUID
+    username: str    # Unique
+    hashed_password: str
+    elo_rating: int = 1000
+    battle_wins: int = 0
+    battle_losses: int = 0
+    battle_draws: int = 0
+    rank: str = "Youngster"
+    disabled: bool = False
+    created_at: datetime
+
+class BattleRecord(SQLModel, table=True):
+    """Persisted battle state."""
+    id: str              # UUID
+    challenger_id: str   # FK to ServerUser
+    opponent_id: str     # FK to ServerUser
+    format: str          # singles_1v1, singles_3v3, singles_6v6
+    status: str          # pending, team_submission, active, finished
+    winner_id: str | None
+    state_json: str      # Serialized BattleState
+    turn_history_json: str  # Serialized list of turn events
+    created_at: datetime
+    updated_at: datetime
+
+class LeaderboardEntry(BaseModel):
+    """Response model for leaderboard queries."""
     username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
+    elo_rating: int
+    battle_wins: int
+    battle_losses: int
+    battle_draws: int
+    rank: str
+    win_rate: float
 
 class Token(BaseModel):
     access_token: str
     token_type: str
-```
 ```
 
 ---

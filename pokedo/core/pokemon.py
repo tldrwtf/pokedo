@@ -3,8 +3,14 @@
 import random
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+
+from pokedo.core.moves import Move, PokemonNature, generate_default_moveset, random_nature
+
+if TYPE_CHECKING:
+    from pokedo.core.battle import BattlePokemon
 
 
 class PokemonRarity(str, Enum):
@@ -58,6 +64,10 @@ class Pokemon(BaseModel):
     evolution_id: int | None = None  # Pokedex ID of evolution
     evolution_level: int | None = None
     evolution_method: str | None = None  # "level", "item", "trade", "friendship"
+
+    # Nature and moves (multiplayer / battle support)
+    nature: str = "hardy"  # PokemonNature value; defaults to neutral
+    moves: list[Move] = Field(default_factory=list)  # Up to 4 moves
 
     # Sprites (cached paths)
     sprite_url: str | None = None
@@ -168,6 +178,42 @@ class Pokemon(BaseModel):
     def decrease_happiness(self, amount: int = 1) -> None:
         """Decrease happiness, minimum 0."""
         self.happiness = max(0, self.happiness - amount)
+
+    def ensure_nature(self) -> None:
+        """Assign a random nature if one is not yet set.
+
+        Only assigns if the nature is the default empty/unset value.
+        'hardy' is a valid nature and is NOT overwritten.
+        Called at catch time so existing Pokemon retain their nature.
+        """
+        if not self.nature:
+            self.nature = random_nature().value
+
+    def ensure_moves(self) -> None:
+        """Generate a default moveset if none is assigned."""
+        if not self.moves:
+            self.moves = generate_default_moveset(self.type1, self.type2, self.level)
+
+    def to_battle_pokemon(self) -> "BattlePokemon":
+        """Create a BattlePokemon snapshot for use in PvP."""
+        from pokedo.core.battle import create_battle_pokemon
+
+        self.ensure_nature()
+        self.ensure_moves()
+        return create_battle_pokemon(
+            pokemon_id=self.id or 0,
+            pokedex_id=self.pokedex_id,
+            name=self.name,
+            nickname=self.nickname,
+            type1=self.type1,
+            type2=self.type2,
+            level=self.level,
+            base_stats=self.base_stats,
+            ivs=self.ivs,
+            evs=self.evs,
+            nature=self.nature,
+            moves=[m.model_copy(deep=True) for m in self.moves],  # Deep copy so battle doesn't mutate permanent moves
+        )
 
 
 class PokedexEntry(BaseModel):

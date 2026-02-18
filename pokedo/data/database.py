@@ -285,6 +285,55 @@ class Database:
                 )
             """)
 
+            # Battle history table (local cache of completed battles)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS battle_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trainer_id INTEGER NOT NULL,
+                    battle_id TEXT NOT NULL,
+                    opponent_name TEXT NOT NULL,
+                    format TEXT DEFAULT 'singles_3v3',
+                    result TEXT NOT NULL,
+                    elo_before INTEGER DEFAULT 1000,
+                    elo_after INTEGER DEFAULT 1000,
+                    elo_delta INTEGER DEFAULT 0,
+                    turn_count INTEGER DEFAULT 0,
+                    played_at TEXT NOT NULL,
+                    FOREIGN KEY (trainer_id) REFERENCES trainer(id)
+                )
+            """)
+
+            # Migration: Add nature and moves columns to pokemon table
+            for col, default in [("nature", "'hardy'"), ("moves", "'[]'")]:
+                try:
+                    cursor.execute(
+                        f"ALTER TABLE pokemon ADD COLUMN {col} TEXT DEFAULT {default}"
+                    )
+                except sqlite3.OperationalError:
+                    pass  # Column likely exists
+
+            # Migration: Add PvP stat columns to trainer table
+            for col in (
+                "battle_wins",
+                "battle_losses",
+                "battle_draws",
+                "elo_rating",
+            ):
+                try:
+                    default = "1000" if col == "elo_rating" else "0"
+                    cursor.execute(
+                        f"ALTER TABLE trainer ADD COLUMN {col} INTEGER DEFAULT {default}"
+                    )
+                except sqlite3.OperationalError:
+                    pass  # Column likely exists
+
+            try:
+                cursor.execute(
+                    "ALTER TABLE trainer ADD COLUMN pvp_rank TEXT DEFAULT 'Unranked'"
+                )
+            except sqlite3.OperationalError:
+                pass
+
     def _ensure_trainer_id_column(
         self, cursor: sqlite3.Cursor, table_name: str, default_trainer_id: int | None
     ) -> None:
@@ -605,7 +654,8 @@ class Database:
                     """
                     UPDATE pokemon SET
                         nickname = ?, level = ?, xp = ?, happiness = ?, evs = ?, ivs = ?,
-                        base_stats = ?, is_active = ?, is_favorite = ?, can_evolve = ?
+                        base_stats = ?, is_active = ?, is_favorite = ?, can_evolve = ?,
+                        nature = ?, moves = ?
                     WHERE id = ? AND trainer_id = ?
                 """,
                     (
@@ -619,6 +669,8 @@ class Database:
                         int(pokemon.is_active),
                         int(pokemon.is_favorite),
                         int(pokemon.can_evolve),
+                        pokemon.nature,
+                        json.dumps([m.model_dump() for m in pokemon.moves]),
                         pokemon.id,
                         resolved_trainer_id,
                     ),
@@ -629,8 +681,9 @@ class Database:
                     INSERT INTO pokemon (trainer_id, pokedex_id, name, nickname, type1, type2,
                         level, xp, happiness, evs, ivs, base_stats, caught_at, is_shiny, catch_location,
                         is_active, is_favorite, can_evolve, evolution_id,
-                        evolution_level, evolution_method, sprite_url, sprite_path)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        evolution_level, evolution_method, sprite_url, sprite_path,
+                        nature, moves)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         resolved_trainer_id,
@@ -656,6 +709,8 @@ class Database:
                         pokemon.evolution_method,
                         pokemon.sprite_url,
                         pokemon.sprite_path,
+                        pokemon.nature,
+                        json.dumps([m.model_dump() for m in pokemon.moves]),
                     ),
                 )
                 pokemon.id = cursor.lastrowid
@@ -717,6 +772,19 @@ class Database:
 
     def _row_to_pokemon(self, row: sqlite3.Row) -> Pokemon:
         """Convert database row to Pokemon model."""
+        from pokedo.core.moves import Move
+
+        keys = row.keys()
+
+        # Parse moves JSON if present
+        moves_data: list = []
+        if "moves" in keys and row["moves"]:
+            try:
+                raw = json.loads(row["moves"])
+                moves_data = [Move.model_validate(m) for m in raw]
+            except (json.JSONDecodeError, Exception):
+                pass
+
         return Pokemon(
             id=row["id"],
             pokedex_id=row["pokedex_id"],
@@ -729,17 +797,17 @@ class Database:
             happiness=row["happiness"],
             evs=(
                 json.loads(row["evs"])
-                if "evs" in row.keys() and row["evs"]
+                if "evs" in keys and row["evs"]
                 else {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
             ),
             ivs=(
                 json.loads(row["ivs"])
-                if "ivs" in row.keys() and row["ivs"]
+                if "ivs" in keys and row["ivs"]
                 else {"hp": 0, "atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0}
             ),
             base_stats=(
                 json.loads(row["base_stats"])
-                if "base_stats" in row.keys() and row["base_stats"]
+                if "base_stats" in keys and row["base_stats"]
                 else {"hp": 50, "atk": 50, "def": 50, "spa": 50, "spd": 50, "spe": 50}
             ),
             caught_at=datetime.fromisoformat(row["caught_at"]),
@@ -753,6 +821,8 @@ class Database:
             evolution_method=row["evolution_method"],
             sprite_url=row["sprite_url"],
             sprite_path=row["sprite_path"],
+            nature=row["nature"] if "nature" in keys and row["nature"] else "hardy",
+            moves=moves_data,
         )
 
     # Pokedex operations
@@ -959,7 +1029,9 @@ class Database:
                     pokedex_seen = ?, pokedex_caught = ?,
                     daily_streak_count = ?, daily_streak_best = ?, daily_streak_last_date = ?,
                     wellbeing_streak_count = ?, wellbeing_streak_best = ?, wellbeing_streak_last_date = ?,
-                    badges = ?, inventory = ?, favorite_pokemon_id = ?, last_active_date = ?
+                    badges = ?, inventory = ?, favorite_pokemon_id = ?, last_active_date = ?,
+                    battle_wins = ?, battle_losses = ?, battle_draws = ?,
+                    elo_rating = ?, pvp_rank = ?
                 WHERE id = ?
             """,
                 (
@@ -991,6 +1063,11 @@ class Database:
                     json.dumps(trainer.inventory),
                     trainer.favorite_pokemon_id,
                     trainer.last_active_date.isoformat() if trainer.last_active_date else None,
+                    trainer.battle_wins,
+                    trainer.battle_losses,
+                    trainer.battle_draws,
+                    trainer.elo_rating,
+                    trainer.pvp_rank,
                     trainer.id,
                 ),
             )
@@ -1063,12 +1140,20 @@ class Database:
             ),
         )
 
+        # Safely read PvP columns (may not exist on older DBs before migration runs)
+        keys = row.keys()
+        battle_wins = row["battle_wins"] if "battle_wins" in keys else 0
+        battle_losses = row["battle_losses"] if "battle_losses" in keys else 0
+        battle_draws = row["battle_draws"] if "battle_draws" in keys else 0
+        elo_rating = row["elo_rating"] if "elo_rating" in keys else 1000
+        pvp_rank = row["pvp_rank"] if "pvp_rank" in keys else "Unranked"
+
         return Trainer(
             id=row["id"],
             name=row["name"],
             trainer_class=(
                 TrainerClass(row["trainer_class"])
-                if "trainer_class" in row.keys()
+                if "trainer_class" in keys
                 else TrainerClass.ACE_TRAINER
             ),
             created_at=datetime.fromisoformat(row["created_at"]),
@@ -1082,6 +1167,11 @@ class Database:
             pokedex_caught=row["pokedex_caught"] or 0,
             daily_streak=daily_streak,
             wellbeing_streak=wellbeing_streak,
+            battle_wins=battle_wins or 0,
+            battle_losses=battle_losses or 0,
+            battle_draws=battle_draws or 0,
+            elo_rating=elo_rating or 1000,
+            pvp_rank=pvp_rank or "Unranked",
             badges=[],
             inventory=json.loads(row["inventory"]) if row["inventory"] else {},
             favorite_pokemon_id=row["favorite_pokemon_id"],
@@ -1277,6 +1367,65 @@ class Database:
                 )
                 for row in cursor.fetchall()
             ]
+
+    # --- Battle history (local cache) ---
+
+    def save_battle_result(
+        self,
+        battle_id: str,
+        opponent_name: str,
+        result: str,
+        format: str = "singles_3v3",
+        elo_before: int = 1000,
+        elo_after: int = 1000,
+        elo_delta: int = 0,
+        turn_count: int = 0,
+        trainer_id: int | None = None,
+    ) -> None:
+        """Save a completed battle to local history."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id, ensure=True)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO battle_history
+                    (trainer_id, battle_id, opponent_name, format, result,
+                     elo_before, elo_after, elo_delta, turn_count, played_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    resolved_trainer_id,
+                    battle_id,
+                    opponent_name,
+                    format,
+                    result,
+                    elo_before,
+                    elo_after,
+                    elo_delta,
+                    turn_count,
+                    datetime.now().isoformat(),
+                ),
+            )
+
+    def get_battle_history(
+        self, limit: int = 20, trainer_id: int | None = None
+    ) -> list[dict]:
+        """Get local battle history for the trainer."""
+        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
+        if resolved_trainer_id is None:
+            return []
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT * FROM battle_history
+                WHERE trainer_id = ?
+                ORDER BY played_at DESC
+                LIMIT ?
+            """,
+                (resolved_trainer_id, limit),
+            )
+            return [dict(row) for row in cursor.fetchall()]
 
 
 # Global database instance
