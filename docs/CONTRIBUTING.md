@@ -95,22 +95,37 @@ pokedo/
 │   │   ├── tasks.py      # Task commands
 │   │   ├── pokemon.py    # Pokemon commands
 │   │   ├── wellbeing.py  # Wellbeing commands
-│   │   └── stats.py      # Stats commands
+│   │   ├── stats.py      # Stats commands
+│   │   ├── profile.py    # Profile commands
+│   │   ├── battle.py     # PvP battle commands
+│   │   └── leaderboard.py # Leaderboard commands
 │   └── ui/               # UI components
 │       ├── displays.py   # Display helpers
 │       └── menus.py      # Interactive menus
+├── tui/                  # TUI (Textual) interface
+│   ├── app.py            # Textual dashboard app
+│   ├── screens/          # Screen classes
+│   ├── widgets/          # Reusable UI components
+│   └── styles/           # Textual CSS styling
 ├── core/                 # Business logic
+│   ├── auth.py           # Authentication (Bcrypt/JWT)
+│   ├── battle.py         # PvP battle state machine
+│   ├── moves.py          # Move model, type chart, damage formula
 │   ├── task.py           # Task model
-│   ├── trainer.py        # Trainer model
-│   ├── pokemon.py        # Pokemon model
-│   ├── rewards.py        # Reward system
+│   ├── trainer.py        # Trainer model and PvP stats
+│   ├── pokemon.py        # Pokemon model (EV/IV, battle conversion)
+│   ├── rewards.py        # Encounter and reward system
 │   └── wellbeing.py      # Wellbeing models
 ├── data/                 # Data layer
-│   ├── database.py       # Database operations
-│   └── pokeapi.py        # PokeAPI client
+│   ├── database.py       # SQLite operations (local)
+│   ├── pokeapi.py        # PokeAPI client (async, cached)
+│   ├── server_models.py  # Postgres models (ServerUser, BattleRecord)
+│   └── sync.py           # Sync client and change queue
+├── server.py             # FastAPI server (auth, battles, leaderboard)
 └── utils/                # Utilities
     ├── config.py         # Configuration
-    └── helpers.py        # Helper functions
+    ├── helpers.py        # Helper functions
+    └── sprites.py        # Terminal sprite rendering
 ```
 
 ### Layer Responsibilities
@@ -118,9 +133,9 @@ pokedo/
 | Layer | Responsibility |
 |-------|----------------|
 | `cli/` | User interaction, input validation, output formatting |
-| `core/` | Business logic, game mechanics, domain models |
-| `data/` | Database operations, external API calls |
-| `utils/` | Configuration, shared utilities |
+| `core/` | Business logic, game mechanics, domain models, battle engine |
+| `data/` | Database operations, external API calls, server models |
+| `utils/` | Configuration, shared utilities, sprite rendering |
 
 ### Import Guidelines
 
@@ -235,13 +250,30 @@ def safe_operation() -> None:
 ```text
 tests/
 ├── __init__.py
-├── conftest.py           # Shared fixtures
-├── test_tasks.py         # Task tests
-├── test_pokemon.py       # Pokemon tests
-├── test_trainer.py       # Trainer tests
-├── test_wellbeing.py     # Wellbeing tests
-└── test_database.py      # Database tests
+├── conftest.py              # Shared fixtures (DB, battle helpers)
+├── test_auth.py             # Authentication tests
+├── test_battle.py           # Battle engine tests (91 tests)
+├── test_cli_pokedex.py      # CLI Pokedex command tests
+├── test_cli_profile.py      # CLI profile command tests
+├── test_cli_sprite.py       # CLI sprite rendering tests
+├── test_cli_stats.py        # CLI stats command tests
+├── test_database.py         # Database operation tests
+├── test_helpers.py          # Helper function tests
+├── test_moves.py            # Move system tests (51 tests)
+├── test_pokemon.py          # Pokemon model tests
+├── test_profile_scoping.py  # Profile scoping tests
+├── test_rewards.py          # Reward system tests
+├── test_server.py           # FastAPI server tests (61 tests)
+├── test_sprites.py          # Sprite rendering tests
+├── test_sync.py             # Sync client tests
+├── test_task.py             # Task model tests
+├── test_trainer.py          # Trainer model tests
+├── test_trainer_class.py    # Trainer class tests
+├── test_tui.py              # TUI tests
+└── test_wellbeing.py        # Wellbeing model tests
 ```
+
+**Total: 556 tests across 21 test files.**
 
 ### Writing Tests
 
@@ -312,7 +344,7 @@ def sample_task():
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (556 total)
 pytest
 
 # Run with coverage
@@ -326,7 +358,23 @@ pytest -k "xp"
 
 # Run with verbose output
 pytest -v
+
+# Run only battle/multiplayer tests
+pytest tests/test_moves.py tests/test_battle.py tests/test_server.py -v
+
+# Run with short traceback
+pytest --tb=short
 ```
+
+### Testing Multiplayer Code
+
+Battle engine tests (`test_battle.py`) use deterministic seeds and direct
+`BattleState` / `BattleEngine` instantiation -- no server or database needed.
+
+Server tests (`test_server.py`) use FastAPI's `TestClient` with an in-memory
+SQLite database (`StaticPool`) to avoid needing a running Postgres instance.
+The `conftest.py` fixtures provide helper functions for creating test users,
+battles, and battle-ready Pokemon.
 
 ---
 

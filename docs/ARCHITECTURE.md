@@ -28,10 +28,13 @@ PokeDo is a gamified task manager that combines productivity tracking with Pokem
 - Typer (CLI framework)
 - Textual (TUI framework)
 - Rich (Terminal UI)
-- Pydantic (Data validation)
+- Pydantic v2 (Data validation)
 - SQLite (Local storage)
-- FastAPI (Server)
+- FastAPI (Server with lifespan context manager)
+- SQLModel (Server-side ORM for PostgreSQL)
+- PostgreSQL (Server database via psycopg2)
 - Bcrypt (Direct password hashing)
+- python-jose (JWT token generation/verification)
 - httpx (Async HTTP client for PokeAPI)
 - requests (Sync HTTP client for Server Sync)
 
@@ -45,24 +48,41 @@ pokedo/
 ├── __main__.py           # Entry point for `python -m pokedo`
 ├── cli/                  # Presentation Layer
 │   ├── app.py            # Main Typer application
-│   └── ...
+│   └── commands/
+│       ├── tasks.py      # Task commands
+│       ├── pokemon.py    # Pokemon commands
+│       ├── wellbeing.py  # Wellbeing commands
+│       ├── stats.py      # Stats/profile commands
+│       ├── profile.py    # Profile management commands
+│       ├── battle.py     # PvP battle CLI commands
+│       └── leaderboard.py # Leaderboard CLI commands
+│   └── ui/
+│       ├── displays.py   # Display helpers (Rich tables, panels)
+│       └── menus.py      # Interactive menus
 ├── tui/                  # TUI Layer (Textual)
 │   ├── app.py            # Textual dashboard app
+│   ├── screens/          # Screen classes (tasks, etc.)
+│   ├── widgets/          # Reusable UI components
+│   └── styles/           # Textual CSS styling
 ├── core/                 # Business Logic Layer
 │   ├── auth.py           # Authentication logic (Bcrypt/JWT)
+│   ├── battle.py         # PvP battle state machine and turn resolution
+│   ├── moves.py          # Move model, 18-type chart, damage formula, natures
 │   ├── task.py           # Task model and enums
-│   ├── trainer.py        # Trainer model and progression
-│   ├── pokemon.py        # Pokemon and Pokedex models
+│   ├── trainer.py        # Trainer model, progression, and PvP stats
+│   ├── pokemon.py        # Pokemon and Pokedex models (EV/IV, battle conversion)
 │   ├── rewards.py        # Encounter and reward system
 │   └── wellbeing.py      # Wellbeing tracking models
 ├── data/                 # Data Access Layer
-│   ├── database.py       # SQLite operations
-│   ├── pokeapi.py        # PokeAPI client
-│   └── sync.py           # NEW: Sync client and change queue
-├── server.py             # FastAPI server entry point
+│   ├── database.py       # SQLite operations (local)
+│   ├── pokeapi.py        # PokeAPI client (async, cached)
+│   ├── server_models.py  # Postgres models (ServerUser, BattleRecord, LeaderboardEntry)
+│   └── sync.py           # Sync client and change queue
+├── server.py             # FastAPI server (auth, battles, leaderboard, sync)
 └── utils/                # Utilities
     ├── config.py         # Configuration management
-    └── helpers.py        # Helper functions
+    ├── helpers.py        # Helper functions
+    └── sprites.py        # Terminal sprite rendering
 ```
 
 ---
@@ -95,12 +115,22 @@ The CLI layer handles all user interaction through the Typer framework.
 
 ### Server Layer (`server.py`)
 
-Handles centralized operations and synchronization.
+Handles centralized multiplayer operations, authentication, and synchronization.
 
 **`server.py`** - FastAPI Application
-- User registration and authentication endpoints (`/register`, `/token`)
+- Uses the `lifespan` context manager pattern (not deprecated `on_event`)
+- User registration and JWT authentication (`/register`, `/token`)
+- Full PvP battle API (challenge, accept/decline, team submission, turn actions)
+- Leaderboard queries with ELO-based rankings
+- Server-authoritative battle resolution via `BattleEngine`
 - Protected synchronization endpoint (`/sync`)
-- In-memory user store (prototype)
+- PostgreSQL-backed via SQLModel (ServerUser, BattleRecord tables)
+
+**`data/server_models.py`** - Server Database Models
+- `ServerUser`: Username, hashed password, ELO rating, battle stats, rank
+- `BattleRecord`: Battle state persistence (format, status, teams, turn history)
+- `LeaderboardEntry`: Pydantic response model for rankings
+- `get_leaderboard()`: Query helper with sortable columns and disabled-user filtering
 
 ### Business Logic Layer (`core/`)
 
@@ -108,7 +138,37 @@ The core layer contains domain models and game logic.
 
 **`auth.py`** - Authentication
 - Password hashing (Direct Bcrypt usage)
-- JWT Token generation and verification
+- JWT token generation and verification (python-jose)
+
+**`battle.py`** - PvP Battle System
+```python
+class BattleState(BaseModel):
+    # Full battle state: teams, active Pokemon, turn history,
+    # pending actions, status, winner tracking
+
+class BattleEngine:
+    @staticmethod
+    def resolve_turn(state: BattleState) -> list[TurnEvent]:
+        # Resolves forfeits, switches, then attacks (priority-sorted)
+        # Applies damage, status effects, end-of-turn damage
+        # Handles mutual KO (draw support), auto-switching
+
+def calculate_elo_change(winner_elo, loser_elo, k=32) -> tuple[int, int]
+def compute_rank(elo: int) -> str  # ELO to rank name
+```
+
+**`moves.py`** - Move System
+```python
+class Move(BaseModel):
+    # name, type, power, accuracy, pp, category (physical/special/status)
+    # priority, drain_percent, recoil_percent, status_effect, secondary_effect
+
+TYPE_CHART: dict[str, dict[str, float]]  # 18x18 effectiveness matrix
+NATURE_MODIFIERS: dict[str, dict[str, float]]  # 25 natures
+
+def calculate_damage(...)  # Gen V+ damage formula
+def generate_default_moveset(pokemon, level) -> list[Move]
+```
 
 **`task.py`** - Task Management
 ```python
@@ -134,10 +194,16 @@ class Pokemon(BaseModel):
 
 **`trainer.py`** - Player Progression
 ```python
+class TrainerClass(str, Enum):
+    ACE_TRAINER, HIKER, SCIENTIST, ...  # Specialization classes
+
 class Trainer(BaseModel):
     # Level calculation, XP management
     # Streak tracking, badge system
     # Inventory management
+    # PvP stats: battle_wins, battle_losses, battle_draws
+    # elo_rating (starting 1000), pvp_rank (derived from ELO)
+    # record_battle(won, elo_delta) -- updates stats and rank
 ```
 
 **`rewards.py`** - Reward System
@@ -300,6 +366,25 @@ Display Result <- UI Components <- Reward System <- Calculate Rewards
 │ id, trainer_id   │  │ id, trainer_id   │
 │ date, minutes    │  │ date, content    │
 │ note             │  │ gratitude_items  │
+└──────────────────┘  └──────────────────┘
+```
+
+#### Server Database (PostgreSQL)
+
+```
+┌──────────────────┐  ┌──────────────────┐
+│  server_users    │  │ battle_records   │
+├──────────────────┤  ├──────────────────┤
+│ id (PK, UUID)    │  │ id (PK, UUID)    │
+│ username (unique)│  │ challenger_id FK │
+│ hashed_password  │  │ opponent_id FK   │
+│ elo_rating       │  │ format           │
+│ battle_wins      │  │ status           │
+│ battle_losses    │  │ winner_id        │
+│ battle_draws     │  │ state_json       │
+│ rank             │  │ turn_history     │
+│ disabled         │  │ created/updated  │
+│ created_at       │  │                  │
 └──────────────────┘  └──────────────────┘
 ```
 
@@ -615,8 +700,14 @@ STREAK_REWARDS = {
 
 ### Potential Enhancements
 
-- **Multiplayer:** Battle/trade with other trainers
-- **Cloud Sync:** Backup data to cloud storage
+- **Real-time battles:** WebSocket-based battles with timers
+- **Doubles format:** 2v2 battle support
+- **Hold items:** In-battle item usage
+- **Abilities:** Pokemon abilities affecting battle mechanics
+- **Tournaments:** Bracket-based tournament mode
+- **Spectating:** Watch ongoing battles in real-time
+- **Battle replays:** Save and share completed battles
+- **Cloud Sync:** Full bidirectional sync (currently push-only)
 - **Mobile App:** Companion mobile interface
 - **Plugin System:** Custom game mechanics
 - **Notifications:** Task reminders and streak alerts
@@ -624,6 +715,7 @@ STREAK_REWARDS = {
 ### Scalability Notes
 
 - Local database supports multiple trainer profiles via `trainer_id` scoping
-- Cloud sync would need per-user separation and conflict resolution
+- Server uses PostgreSQL for multi-user state (battles, leaderboard)
+- Change queue supports push-based sync; pull sync is the next milestone
 - API client is already async-ready
 - Cache strategy would need revision for cloud deployment

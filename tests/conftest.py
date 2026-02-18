@@ -8,6 +8,14 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from pokedo.core.battle import (
+    BattleFormat,
+    BattlePokemon,
+    BattleState,
+    BattleStatus,
+    BattleTeam,
+)
+from pokedo.core.moves import DamageClass, Move
 from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity, PokemonTeam
 from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
 from pokedo.core.trainer import Streak, Trainer, TrainerBadge
@@ -432,3 +440,82 @@ def isolated_db(tmp_path, monkeypatch) -> Database:
         monkeypatch.setattr(module, "db", test_db)
 
     return test_db
+
+
+# ---------------------------------------------------------------------------
+# Battle / PvP fixtures
+# ---------------------------------------------------------------------------
+
+
+def _battle_move(name="tackle", type_="normal", power=40, accuracy=100, pp=35, damage_class=DamageClass.PHYSICAL) -> Move:
+    return Move(name=name, type=type_, damage_class=damage_class, power=power, accuracy=accuracy, pp=pp)
+
+
+@pytest.fixture
+def battle_move():
+    """A basic physical Normal-type move."""
+    return _battle_move()
+
+
+@pytest.fixture
+def battle_pokemon():
+    """A standard BattlePokemon (Pikachu-like)."""
+    return BattlePokemon(
+        pokemon_id=1,
+        pokedex_id=25,
+        name="pikachu",
+        type1="electric",
+        max_hp=100,
+        current_hp=100,
+        atk=55,
+        defense=40,
+        spa=50,
+        spd=50,
+        spe=90,
+        level=50,
+        moves=[
+            _battle_move(),
+            _battle_move("thunderbolt", "electric", 90, 100, 15, DamageClass.SPECIAL),
+        ],
+    )
+
+
+@pytest.fixture
+def battle_team(battle_pokemon):
+    """A BattleTeam with a single Pokemon."""
+    return BattleTeam(player_id="player1", trainer_name="Ash", roster=[battle_pokemon])
+
+
+@pytest.fixture
+def active_battle():
+    """A BattleState that is already in ACTIVE status with two 1-mon teams."""
+    t1 = BattleTeam(
+        player_id="player1",
+        trainer_name="Ash",
+        roster=[
+            BattlePokemon(
+                pokemon_id=1, pokedex_id=25, name="pikachu", type1="electric",
+                max_hp=100, current_hp=100, atk=55, defense=40, spa=50, spd=50, spe=90, level=50,
+                moves=[_battle_move(), _battle_move("thunderbolt", "electric", 90, 100, 15, DamageClass.SPECIAL)],
+            )
+        ],
+    )
+    t2 = BattleTeam(
+        player_id="player2",
+        trainer_name="Gary",
+        roster=[
+            BattlePokemon(
+                pokemon_id=2, pokedex_id=4, name="charmander", type1="fire",
+                max_hp=100, current_hp=100, atk=52, defense=43, spa=60, spd=50, spe=65, level=50,
+                moves=[_battle_move(), _battle_move("ember", "fire", 40, 100, 25, DamageClass.SPECIAL)],
+            )
+        ],
+    )
+    return BattleState(
+        challenger_id="player1",
+        opponent_id="player2",
+        format=BattleFormat.SINGLES_1V1,
+        status=BattleStatus.ACTIVE,
+        team1=t1,
+        team2=t2,
+    )

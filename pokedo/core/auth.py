@@ -1,12 +1,13 @@
 """Authentication utilities for PokeDo server."""
 
+import os
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from jose import jwt
 
 # Configuration constants
-SECRET_KEY = "your-secret-key-keep-it-secret"  # In prod, get from env
+SECRET_KEY = os.getenv("POKEDO_SECRET_KEY", "your-secret-key-keep-it-secret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

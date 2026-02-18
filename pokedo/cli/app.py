@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from pokedo import __version__
-from pokedo.cli.commands import pokemon, profile, stats, tasks, wellbeing
+from pokedo.cli.commands import battle, leaderboard, pokemon, profile, stats, tasks, wellbeing
 from pokedo.data.database import db
 
 # Create main app
@@ -22,6 +22,8 @@ app.add_typer(pokemon.app, name="pokemon", help="Pokemon collection")
 app.add_typer(wellbeing.app, name="wellbeing", help="Wellbeing tracking")
 app.add_typer(stats.app, name="stats", help="Statistics and profile")
 app.add_typer(profile.app, name="profile", help="Trainer profile")
+app.add_typer(battle.app, name="battle", help="PvP Pokemon battles")
+app.add_typer(leaderboard.app, name="leaderboard", help="PvP leaderboard")
 
 console = Console()
 

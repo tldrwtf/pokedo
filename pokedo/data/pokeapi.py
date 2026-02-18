@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 
+from pokedo.core.moves import DamageClass, Move, StatusEffect, random_nature
 from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity
 from pokedo.utils.config import config
 
@@ -235,6 +236,7 @@ class PokeAPIClient:
         self.sprites_dir = config.sprites_dir
         self._pokemon_cache: dict[int, dict] = {}
         self._species_cache: dict[int, dict] = {}
+        self._move_cache: dict[str, dict] = {}
         config.ensure_dirs()
 
     async def _fetch_json(self, url: str, client: httpx.AsyncClient) -> dict | None:
@@ -449,6 +451,7 @@ class PokeAPIClient:
             evolution_level=evolution_level,
             evolution_method=evolution_method,
             caught_at=datetime.now(),
+            nature=random_nature().value,
         )
 
     def _extract_base_stats(self, pokemon_data: dict) -> dict[str, int]:
@@ -463,7 +466,192 @@ class PokeAPIClient:
                 base_stats[internal_name] = stat_entry.get("base_stat", 50)
 
         return base_stats
+    # --- Move fetching (multiplayer / battle support) ---
 
+    async def get_move(self, move_name: str, client: httpx.AsyncClient | None = None) -> dict | None:
+        """Fetch a single move's data from PokeAPI (with cache)."""
+        move_key = move_name.lower()
+        if move_key in self._move_cache:
+            return self._move_cache[move_key]
+
+        # Disk cache
+        cache_path = self.cache_dir / f"move_{move_key}.json"
+        if cache_path.exists():
+            data = json.loads(cache_path.read_text())
+            self._move_cache[move_key] = data
+            return data
+
+        # Fetch from API
+        url = f"{self.base_url}/move/{move_key}"
+        should_close = False
+        if client is None:
+            client = httpx.AsyncClient(timeout=30.0)
+            should_close = True
+        try:
+            data = await self._fetch_json(url, client)
+            if data:
+                cache_path.write_text(json.dumps(data))
+                self._move_cache[move_key] = data
+            return data
+        finally:
+            if should_close:
+                await client.aclose()
+
+    def _parse_move_data(self, move_data: dict) -> Move:
+        """Convert raw PokeAPI move JSON into a Move model."""
+        name = move_data.get("name", "unknown")
+        move_type = move_data.get("type", {}).get("name", "normal")
+        damage_class_raw = move_data.get("damage_class", {}).get("name", "physical")
+        power = move_data.get("power")  # None for status moves
+        accuracy = move_data.get("accuracy")
+        pp = move_data.get("pp", 20)
+        priority = move_data.get("priority", 0)
+
+        # Effect text (English short)
+        effect_text = ""
+        for entry in move_data.get("effect_entries", []):
+            if entry.get("language", {}).get("name") == "en":
+                effect_text = entry.get("short_effect", "")
+                break
+
+        effect_chance = move_data.get("effect_chance")
+
+        # Meta info
+        meta = move_data.get("meta", {}) or {}
+        drain_percent = meta.get("drain", 0)
+        healing_percent = meta.get("healing", 0)
+        flinch_chance = meta.get("flinch_chance", 0)
+
+        # Status ailment
+        ailment_name = (meta.get("ailment", {}) or {}).get("name", "none")
+        status_map = {
+            "burn": StatusEffect.BURN,
+            "freeze": StatusEffect.FREEZE,
+            "paralysis": StatusEffect.PARALYSIS,
+            "poison": StatusEffect.POISON,
+            "sleep": StatusEffect.SLEEP,
+        }
+        status_effect = status_map.get(ailment_name, StatusEffect.NONE)
+
+        # Stat changes
+        stat_changes: dict[str, int] = {}
+        for sc in move_data.get("stat_changes", []):
+            api_name = sc.get("stat", {}).get("name", "")
+            internal = STAT_NAME_MAP.get(api_name, api_name)
+            stat_changes[internal] = sc.get("change", 0)
+
+        try:
+            dc = DamageClass(damage_class_raw)
+        except ValueError:
+            dc = DamageClass.PHYSICAL
+
+        return Move(
+            id=move_data.get("id"),
+            name=name,
+            type=move_type,
+            damage_class=dc,
+            power=power,
+            accuracy=accuracy,
+            pp=pp,
+            priority=priority,
+            effect_text=effect_text,
+            effect_chance=effect_chance,
+            status_effect=status_effect,
+            stat_changes=stat_changes,
+            drain_percent=drain_percent,
+            healing_percent=healing_percent,
+            flinch_chance=flinch_chance,
+        )
+
+    async def get_pokemon_moves(
+        self,
+        pokemon_id: int,
+        level: int = 50,
+        max_moves: int = 4,
+        client: httpx.AsyncClient | None = None,
+    ) -> list[Move]:
+        """Fetch a curated moveset for a Pokemon from PokeAPI.
+
+        Picks the best level-up moves the Pokemon can learn at the given level,
+        prioritising STAB and higher-power moves.  Falls back to the default
+        moveset generator if the API call fails.
+        """
+        pokemon_data = await self.get_pokemon(pokemon_id, client=client)
+        if not pokemon_data:
+            return []
+
+        types = pokemon_data.get("types", [])
+        type1 = types[0]["type"]["name"] if types else "normal"
+        type2 = types[1]["type"]["name"] if len(types) > 1 else None
+
+        # Gather candidate move names from level-up learnset
+        candidates: list[tuple[str, int]] = []  # (move_name, level_learned)
+        for move_entry in pokemon_data.get("moves", []):
+            name = move_entry.get("move", {}).get("name", "")
+            for vgd in move_entry.get("version_group_details", []):
+                method = vgd.get("move_learn_method", {}).get("name", "")
+                learned_at = vgd.get("level_learned_at", 0)
+                if method == "level-up" and learned_at <= level:
+                    candidates.append((name, learned_at))
+
+        if not candidates:
+            # Fallback to default generator
+            from pokedo.core.moves import generate_default_moveset
+            return generate_default_moveset(type1, type2, level)
+
+        # Deduplicate, keep highest level_learned for each move
+        best: dict[str, int] = {}
+        for name, lv in candidates:
+            if name not in best or lv > best[name]:
+                best[name] = lv
+
+        # Sort by level learned descending (most recent first)
+        sorted_names = sorted(best.keys(), key=lambda n: best[n], reverse=True)
+
+        # Fetch actual move data (batch, up to 10 candidates)
+        should_close = False
+        if client is None:
+            client = httpx.AsyncClient(timeout=30.0)
+            should_close = True
+        try:
+            moves: list[Move] = []
+            for mname in sorted_names[:10]:
+                raw = await self.get_move(mname, client=client)
+                if raw:
+                    moves.append(self._parse_move_data(raw))
+
+            if not moves:
+                from pokedo.core.moves import generate_default_moveset
+                return generate_default_moveset(type1, type2, level)
+
+            # Score and pick: prefer STAB, higher power, damaging
+            pokemon_types = {type1}
+            if type2:
+                pokemon_types.add(type2)
+
+            def score(m: Move) -> float:
+                s = float(m.power or 0)
+                if m.type in pokemon_types:
+                    s *= 1.5  # STAB bonus in selection
+                if m.damage_class == DamageClass.STATUS:
+                    s = 10  # Keep status moves low priority but nonzero
+                return s
+
+            moves.sort(key=score, reverse=True)
+
+            # Pick top moves, ensure type coverage diversity
+            selected: list[Move] = []
+            types_covered: set[str] = set()
+            for m in moves:
+                if len(selected) >= max_moves:
+                    break
+                selected.append(m)
+                types_covered.add(m.type)
+
+            return selected
+        finally:
+            if should_close:
+                await client.aclose()
     def _classify_rarity(self, pokemon_id: int, species_data: dict | None) -> PokemonRarity:
         """Classify Pokemon rarity based on its characteristics."""
         # Check explicit rarity categories first

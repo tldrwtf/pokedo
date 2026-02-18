@@ -11,5 +11,16 @@ services:
     volumes:
       - pokedo_pgdata:/var/lib/postgresql/data
 
+  server:
+    build: .
+    command: uvicorn pokedo.server:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      POKEDO_DATABASE_URL: "postgresql://pokedo:pokedopass@db:5432/pokedo"
+      POKEDO_SECRET_KEY: "change-me-in-production"
+    depends_on:
+      - db
+
 volumes:
   pokedo_pgdata:

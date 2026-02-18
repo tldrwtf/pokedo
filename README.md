@@ -2,7 +2,7 @@
 
 A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch Pokemon, build your collection, and track your mental and physical wellbeing.
 
-**Version:** 0.3.3 | **License:** MIT | **Python:** 3.10+ 
+**Version:** 0.4.0 | **License:** MIT | **Python:** 3.10+ 
 
 ![CI](https://github.com/tldrwtf/pokedo/actions/workflows/ci.yml/badge.svg?branch=main) ![Version](https://badgen.net/github/release/tldrwtf/pokedo/stable)
 
@@ -12,7 +12,8 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
-- [Server Usage (Optional)](#server-usage-optional)
+- [Multiplayer (PvP Battles)](#multiplayer-pvp-battles)
+- [Server Usage](#server-usage)
 - [How It Works](#how-it-works)
 - [Data Storage](#data-storage)
 - [Development](#development)
@@ -60,6 +61,20 @@ A Pokemon-themed CLI task manager and wellbeing tracker. Complete tasks to catch
 - Daily streaks with milestone rewards
 - Achievement badges
 - Inventory system (Pokeballs, evolution items)
+
+### Multiplayer (PvP)
+
+- **Async turn-based battles** against other trainers via a self-hosted server
+- **Three battle formats**: 1v1, 3v3, and 6v6 singles
+- **Gen V+ damage formula** with STAB, type effectiveness, critical hits
+- **18-type chart** with full dual-type support (0x through 4x)
+- **25 natures** affecting stat calculations
+- **Status effects**: burn, poison, badly poisoned, paralysis, sleep, freeze
+- **Move mechanics**: priority, drain, recoil, Protect, secondary effects
+- **ELO rating system** (K=32) with rank progression (Youngster to Pokemon Master)
+- **Global leaderboard** sortable by ELO, wins, or losses
+- Server-authoritative -- clients send intents, server resolves outcomes
+- Snapshot-based teams -- local roster changes don't affect in-flight battles
 
 ### Terminal User Interface (TUI)
 
@@ -264,37 +279,91 @@ The task screen provides full CRUD operations with tabbed filtering:
 
 Completing a task in the TUI triggers the full encounter flow with XP rewards, streak updates, and Pokemon catching, just like the CLI.
 
+### Multiplayer (PvP Battles)
+
+Requires a running PokeDo server. See [Server Usage](#server-usage-optional) below.
+
+```bash
+# Register an account
+pokedo battle register -u myname -p mypass
+
+# Challenge another trainer
+pokedo battle challenge opponent_name -u myname -p mypass
+
+# Accept a challenge (as the opponent)
+pokedo battle accept <battle-id> -u opponent -p theirpass
+
+# Submit your team
+pokedo battle team <battle-id> -u myname -p mypass
+
+# Attack with a move (index 0-3)
+pokedo battle move <battle-id> -m 0 -u myname -p mypass
+
+# Switch to a different Pokemon (team slot index)
+pokedo battle switch <battle-id> 1 -u myname -p mypass
+
+# Forfeit
+pokedo battle forfeit <battle-id> -u myname -p mypass
+
+# Check battle status
+pokedo battle status <battle-id> -u myname -p mypass
+
+# View battle history
+pokedo battle history -u myname -p mypass
+```
+
+### Leaderboard
+
+```bash
+# Global leaderboard (sorted by ELO by default)
+pokedo leaderboard show
+
+# Sort by wins
+pokedo leaderboard show --sort battle_wins
+
+# Your own profile
+pokedo leaderboard me -u myname
+```
+
 ### Server Usage (Optional)
 
-PokeDo is developing a FastAPI server to enable cloud synchronization and multi-user features. This system uses `requests` for client-side pushing and `bcrypt` for secure authentication.
+PokeDo includes a FastAPI server for multiplayer battles, leaderboard tracking,
+and cloud synchronization. The server uses PostgreSQL for persistent state and
+the `lifespan` context manager pattern.
 
-1.  **Run the Server:**
+1.  **Start with Docker Compose (recommended):**
 
     ```bash
+    docker-compose up -d
+    ```
+
+    This starts both PostgreSQL and the PokeDo server.
+
+2.  **Or run manually:**
+
+    ```bash
+    # Start PostgreSQL separately, then:
     uvicorn pokedo.server:app --reload --port 8000
     ```
 
     (Ensure you have installed development dependencies: `pip install -e ".[dev]"`)
 
-2.  **Register a User:**
+3.  **Environment variables:**
+
+    | Variable | Default | Description |
+    |----------|---------|-------------|
+    | `POKEDO_DATABASE_URL` | `postgresql://pokedo:pokedopass@localhost:5432/pokedo` | Postgres connection |
+    | `POKEDO_SECRET_KEY` | `your-secret-key-keep-it-secret` | JWT signing secret |
+    | `POKEDO_SERVER_URL` | `http://localhost:8000` | Server URL for CLI |
+
+4.  **Register and battle:**
 
     ```bash
-    curl -X POST http://localhost:8000/register -H "Content-Type: application/json" -d "{\"username\": \"testuser\", \"password\": \"testpassword\"}"
+    pokedo battle register -u myname -p mypassword
+    pokedo battle challenge opponent -u myname -p mypassword
     ```
 
-3.  **Login and Get an Access Token:**
-
-    ```bash
-    curl -X POST http://localhost:8000/token -F "username=testuser" -F "password=testpassword"
-    ```
-
-    This will return a JSON object containing your `access_token`.
-
-4.  **Access Protected Endpoints (e.g., /users/me or /sync):**
-    Replace `<YOUR_ACCESS_TOKEN>` with the token received from the login step.
-    ```bash
-    curl -X GET http://localhost:8000/users/me -H "Authorization: Bearer <YOUR_ACCESS_TOKEN>"
-    ```
+    See [MULTIPLAYER.md](docs/MULTIPLAYER.md) for the full battle flow.
 
 ## How It Works
 
@@ -376,10 +445,12 @@ Wellbeing actions also affect type encounters:
 
 ## Recent Fixes & Behavior Notes
 
-- **EV/IV persistence**: Pokemon now persist their EV/IV dictionaries, so every completion permanently boosts the lead Pokémon’s stats (see `pokedo/data/database.py` and `pokedo/core/pokemon.py`).
-- **Affinity-aware encounters**: The reward engine filters rarity pools by task/wellbeing affinities, backfills missing type data (`_ensure_pokedex_entry_types`), and consumes the best available ball (master/ultra/great) for each attempt (`pokedo/core/rewards.py`).
-- **Pokedex tracking parity**: Every catch or evolution increments `pokedex_seen`/`pokedex_caught` (with first-caught timestamps and shiny flags), keeping trainer completion metrics in sync (`pokedo/cli/commands/tasks.py`, `pokedo/cli/commands/pokemon.py`).
-- **Priority ordering & streak sync**: Task listings now sort using explicit numeric weights, and streak best counters update immediately on first-day or resumed streaks (`pokedo/data/database.py`, `pokedo/core/trainer.py`).
+- **Multiplayer system**: Full async turn-based PvP battles with ELO-based leaderboard. FastAPI server backed by PostgreSQL, using the `lifespan` context manager (not deprecated `on_event`). Server-authoritative battle resolution with snapshot-based teams.
+- **Battle engine**: Gen V+ damage formula, 18-type effectiveness chart, 25 natures, move priority system, status effects (burn/poison/paralysis/sleep/freeze/badly poisoned), drain/recoil mechanics, Protect, mutual KO draw support.
+- **EV/IV persistence**: Pokemon now persist their EV/IV dictionaries, so every completion permanently boosts the lead Pokemon's stats.
+- **Affinity-aware encounters**: The reward engine filters rarity pools by task/wellbeing affinities, backfills missing type data, and consumes the best available ball for each attempt.
+- **Pokedex tracking parity**: Every catch or evolution increments `pokedex_seen`/`pokedex_caught` (with first-caught timestamps and shiny flags).
+- **Priority ordering & streak sync**: Task listings sort using explicit numeric weights, and streak best counters update immediately on first-day or resumed streaks.
 
 ### EV/IV System
 
@@ -403,7 +474,6 @@ This system provides RPG mechanics for training your Pokemon's stats:
 
 | Difficulty | EV Yield |
 | ---------- | -------- |
-|------------|----------|
 | Easy       | 1 EV     |
 | Medium     | 2 EVs    |
 | Hard       | 4 EVs    |
@@ -419,25 +489,29 @@ All data is stored locally in `~/.pokedo/`:
 
 ## Development
 
-The project includes a FastAPI server (`pokedo/server.py`) for future cloud synchronization and currently provides **user authentication (registration/login with JWT)**.
+The project includes a FastAPI server (`pokedo/server.py`) for multiplayer battles, a global leaderboard, and cloud synchronization. The server uses PostgreSQL via SQLModel and JWT-based authentication.
 
 ```bash
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests
+# Run all tests (556 tests)
 pytest
 
 # Run tests with coverage
 pytest --cov=pokedo
 
 # Run specific test file
-pytest tests/test_tasks.py
+pytest tests/test_battle.py
+
+# Run multiplayer tests only
+pytest tests/test_moves.py tests/test_battle.py tests/test_server.py -v
 ```
 
 For more development information, see:
 
 - [Architecture Documentation](docs/ARCHITECTURE.md) - System design and code structure
+- [Multiplayer Guide](docs/MULTIPLAYER.md) - PvP battles, leaderboard, and server API
 - [Contributing Guide](docs/CONTRIBUTING.md) - How to contribute to PokeDo
 - [API Reference](docs/API.md) - Internal API documentation
 
@@ -518,6 +592,18 @@ A: Yes. Each trainer profile is stored in the same local database. The CLI uses 
 **Q: Does wellbeing tracking affect gameplay?**
 A: Yes! Good sleep improves catch rates, hydration goals boost Water-type encounters, and meditation increases Psychic/Fairy encounters.
 
+**Q: How do I battle other players?**
+A: Start the PokeDo server (see [Multiplayer Guide](docs/MULTIPLAYER.md)), register an account, and use the `pokedo battle` commands. Battles are async and turn-based -- you and your opponent submit actions independently, and the server resolves each turn.
+
+**Q: Do I need a server to play?**
+A: No. All single-player features (tasks, Pokemon, wellbeing) work fully offline with a local SQLite database. The server is only needed for PvP battles and the leaderboard.
+
+**Q: What battle formats are available?**
+A: Three formats: `singles_1v1` (1 Pokemon), `singles_3v3` (3 Pokemon, one active), and `singles_6v6` (full team, one active). Doubles and tournaments are planned for the future.
+
+**Q: How does the ELO rating work?**
+A: Starting rating is 1000 with K-factor 32. Winning against higher-rated opponents earns more points. Ranks range from Youngster (below 1100) to Pokemon Master (2100+).
+
 **Q: How do I evolve Pokemon?**
 A: Level up your Pokemon by completing tasks. When evolution requirements are met, use `pokedo pokemon evolve <id>`.
 
@@ -530,15 +616,16 @@ A: The CLI (Command Line Interface) uses typed commands like `pokedo task add`. 
 
 ```
 pokedo/
-├── cli/           # Command-line interface
-├── core/          # Business logic and models
-├── data/          # Database and API clients
+├── cli/           # Command-line interface (tasks, pokemon, battle, leaderboard)
+├── core/          # Business logic, models, battle engine, move system
+├── data/          # Database, API clients, server models
 ├── tui/           # Terminal user interface (Textual)
 │   ├── app.py         # Main TUI application
 │   ├── screens/       # Screen classes (tasks, etc.)
 │   ├── widgets/       # Reusable UI components
 │   └── styles/        # Textual CSS styling
-└── utils/         # Configuration and helpers
+├── server.py      # FastAPI server (auth, battles, leaderboard, sync)
+└── utils/         # Configuration, helpers, sprite rendering
 ```
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed documentation.
