@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import Any
 
 from sqlmodel import JSON, Column, Field, Session, SQLModel, create_engine, select
-
 
 # ---------------------------------------------------------------------------
 # Database connection
@@ -23,23 +21,36 @@ DATABASE_URL = os.getenv(
     "postgresql://pokedo:pokedopass@localhost:5432/pokedo",
 )
 
-engine = create_engine(DATABASE_URL, echo=False)
+_engine = None
+
+
+def get_server_engine():
+    """Return the server engine, creating it lazily on first use.
+
+    Lazy creation keeps import side-effect free so tests and scripts can
+    set POKEDO_DATABASE_URL after importing this module.
+    """
+    global _engine
+    if _engine is None:
+        _engine = create_engine(DATABASE_URL, echo=False)
+    return _engine
 
 
 def init_server_db() -> None:
     """Create all server-side tables."""
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(get_server_engine())
 
 
 def get_session():
     """Yield a new database session (use as a dependency in FastAPI)."""
-    with Session(engine) as session:
+    with Session(get_server_engine()) as session:
         yield session
 
 
 # ---------------------------------------------------------------------------
 # User model (replaces fake_users_db)
 # ---------------------------------------------------------------------------
+
 
 class ServerUser(SQLModel, table=True):
     """Persistent user account on the server."""
@@ -64,6 +75,9 @@ class ServerUser(SQLModel, table=True):
     battle_draws: int = 0
     pvp_rank: str = "Unranked"
 
+    # Optimistic-lock counter for concurrent stat updates (see services/battle.py)
+    version: int = 0
+
     # Snapshot of stats for leaderboard (updated on sync or battle)
     total_xp: int = 0
     trainer_level: int = 1
@@ -77,6 +91,7 @@ class ServerUser(SQLModel, table=True):
 # Battle record
 # ---------------------------------------------------------------------------
 
+
 class BattleRecord(SQLModel, table=True):
     """Persistent record of a battle (past or in-progress)."""
 
@@ -85,7 +100,14 @@ class BattleRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     battle_id: str = Field(index=True, unique=True)  # UUID
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+    )
+
+    # Optimistic-lock counter: bumped on every write so concurrent mutations
+    # of the same battle lose their commit instead of clobbering state_json.
+    version: int = 0
 
     # Format
     format: str = "singles_3v3"  # BattleFormat value
@@ -111,6 +133,7 @@ class BattleRecord(SQLModel, table=True):
 # ---------------------------------------------------------------------------
 # Leaderboard helpers (queries, not separate tables)
 # ---------------------------------------------------------------------------
+
 
 class LeaderboardEntry(SQLModel):
     """Read-only model for leaderboard API responses (not a table)."""

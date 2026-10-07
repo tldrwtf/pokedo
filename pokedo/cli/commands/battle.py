@@ -4,9 +4,9 @@ All battle interactions go through the PokeDo server. The CLI acts as
 a thin client that sends requests and renders the results.
 """
 
-from typing import Optional
+import time
 
-import requests
+import httpx
 import typer
 from rich import box
 from rich.console import Console
@@ -14,7 +14,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 from pokedo.data.database import db
-from pokedo.utils.config import config
 
 app = typer.Typer(name="battle", help="PvP Pokemon battles")
 console = Console()
@@ -30,6 +29,42 @@ def _get_server_url() -> str:
     return os.getenv("POKEDO_SERVER_URL", SERVER_URL)
 
 
+def _request(method: str, url: str, *, retries: int = 1, **kwargs) -> httpx.Response | None:
+    """Perform an HTTP request with friendly network-error handling.
+
+    Retries once on transient connection/timeout failures. Returns None
+    (after printing a message) when the server cannot be reached.
+    """
+    kwargs.setdefault("timeout", 10)
+    for attempt in range(retries + 1):
+        try:
+            return httpx.request(method, url, **kwargs)
+        except (httpx.ConnectError, httpx.TimeoutException):
+            if attempt >= retries:
+                console.print(
+                    "[red]Cannot reach the PokeDo server.[/red] Is it running "
+                    f"at {_get_server_url()}?"
+                )
+                return None
+            time.sleep(1.0)
+        except httpx.HTTPError as exc:
+            console.print(f"[red]Request failed:[/red] {exc}")
+            return None
+    return None
+
+
+def _error_detail(resp: httpx.Response) -> str:
+    """Extract a safe error message from a non-2xx response."""
+    try:
+        data = resp.json()
+    except ValueError:
+        text = resp.text.strip()
+        return text[:200] or f"HTTP {resp.status_code}"
+    if isinstance(data, dict):
+        return str(data.get("detail", resp.text.strip()[:200] or f"HTTP {resp.status_code}"))
+    return str(data)[:200]
+
+
 def _auth_headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
@@ -37,13 +72,16 @@ def _auth_headers(token: str) -> dict:
 def _login(username: str, password: str) -> str | None:
     """Authenticate and return a JWT token."""
     url = f"{_get_server_url()}/token"
-    try:
-        resp = requests.post(url, data={"username": username, "password": password}, timeout=10)
-        if resp.status_code == 200:
+    resp = _request("POST", url, data={"username": username, "password": password})
+    if resp is None:
+        return None
+    if resp.status_code == 200:
+        try:
             return resp.json()["access_token"]
-        console.print(f"[red]Login failed:[/red] {resp.json().get('detail', resp.text)}")
-    except requests.ConnectionError:
-        console.print("[red]Cannot connect to PokeDo server.[/red] Is it running?")
+        except (ValueError, KeyError):
+            console.print("[red]Login failed:[/red] unexpected server response.")
+            return None
+    console.print(f"[red]Login failed:[/red] {_error_detail(resp)}")
     return None
 
 
@@ -56,37 +94,36 @@ def _login(username: str, password: str) -> str | None:
 def register_account(
     username: str = typer.Option(..., "--username", "-u", prompt=True),
     password: str = typer.Option(..., "--password", "-p", prompt=True, hide_input=True),
-    email: Optional[str] = typer.Option(None, "--email", "-e"),
+    email: str | None = typer.Option(None, "--email", "-e"),
 ) -> None:
     """Register a new account on the PokeDo server."""
     trainer = db.get_or_create_trainer()
     url = f"{_get_server_url()}/register"
-    try:
-        resp = requests.post(
-            url,
-            json={
-                "username": username,
-                "password": password,
-                "email": email,
-                "trainer_name": trainer.name,
-            },
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            console.print(
-                Panel(
-                    f"Account created: [bold]{data['username']}[/bold]\n"
-                    f"Trainer: {data.get('trainer_name', 'N/A')}\n"
-                    f"ELO: {data.get('elo_rating', 1000)} | Rank: {data.get('pvp_rank', 'Unranked')}",
-                    title="Registration Successful",
-                    border_style="green",
-                )
+    resp = _request(
+        "POST",
+        url,
+        json={
+            "username": username,
+            "password": password,
+            "email": email,
+            "trainer_name": trainer.name,
+        },
+    )
+    if resp is None:
+        return
+    if resp.status_code == 200:
+        data = resp.json()
+        console.print(
+            Panel(
+                f"Account created: [bold]{data['username']}[/bold]\n"
+                f"Trainer: {data.get('trainer_name', 'N/A')}\n"
+                f"ELO: {data.get('elo_rating', 1000)} | Rank: {data.get('pvp_rank', 'Unranked')}",
+                title="Registration Successful",
+                border_style="green",
             )
-        else:
-            console.print(f"[red]Registration failed:[/red] {resp.json().get('detail', resp.text)}")
-    except requests.ConnectionError:
-        console.print("[red]Cannot connect to PokeDo server.[/red] Is it running?")
+        )
+    else:
+        console.print(f"[red]Registration failed:[/red] {_error_detail(resp)}")
 
 
 @app.command("challenge")
@@ -102,12 +139,14 @@ def send_challenge(
         return
 
     url = f"{_get_server_url()}/battles/challenge"
-    resp = requests.post(
+    resp = _request(
+        "POST",
         url,
         json={"opponent_username": opponent, "format": format},
         headers=_auth_headers(token),
-        timeout=10,
     )
+    if resp is None:
+        return
     if resp.status_code == 200:
         data = resp.json()
         console.print(
@@ -121,7 +160,7 @@ def send_challenge(
         )
         console.print("[dim]Share the Battle ID with your opponent so they can accept.[/dim]")
     else:
-        console.print(f"[red]Challenge failed:[/red] {resp.json().get('detail', resp.text)}")
+        console.print(f"[red]Challenge failed:[/red] {_error_detail(resp)}")
 
 
 @app.command("pending")
@@ -135,9 +174,11 @@ def list_pending(
         return
 
     url = f"{_get_server_url()}/battles/pending"
-    resp = requests.get(url, headers=_auth_headers(token), timeout=10)
+    resp = _request("GET", url, headers=_auth_headers(token))
+    if resp is None:
+        return
     if resp.status_code != 200:
-        console.print(f"[red]Error:[/red] {resp.text}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
         return
 
     battles = resp.json()
@@ -177,7 +218,9 @@ def accept_battle(
         return
 
     url = f"{_get_server_url()}/battles/{battle_id}/accept"
-    resp = requests.post(url, headers=_auth_headers(token), timeout=10)
+    resp = _request("POST", url, headers=_auth_headers(token))
+    if resp is None:
+        return
     if resp.status_code == 200:
         data = resp.json()
         console.print(
@@ -189,7 +232,7 @@ def accept_battle(
             )
         )
     else:
-        console.print(f"[red]Error:[/red] {resp.json().get('detail', resp.text)}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
 
 
 @app.command("decline")
@@ -204,11 +247,13 @@ def decline_battle(
         return
 
     url = f"{_get_server_url()}/battles/{battle_id}/decline"
-    resp = requests.post(url, headers=_auth_headers(token), timeout=10)
+    resp = _request("POST", url, headers=_auth_headers(token))
+    if resp is None:
+        return
     if resp.status_code == 200:
         console.print("[yellow]Battle declined.[/yellow]")
     else:
-        console.print(f"[red]Error:[/red] {resp.json().get('detail', resp.text)}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
 
 
 @app.command("team")
@@ -229,7 +274,9 @@ def submit_team(
     # Get the player's active team from local DB
     team_pokemon = db.get_active_team()
     if not team_pokemon:
-        console.print("[red]You have no active team![/red] Set team members first with: pokedo pokemon team")
+        console.print(
+            "[red]You have no active team![/red] Set team members first with: pokedo pokemon team"
+        )
         return
 
     # Convert to BattlePokemon snapshots
@@ -239,12 +286,9 @@ def submit_team(
         battle_team.append(bp.model_dump(mode="json"))
 
     url = f"{_get_server_url()}/battles/{battle_id}/team"
-    resp = requests.post(
-        url,
-        json={"pokemon": battle_team},
-        headers=_auth_headers(token),
-        timeout=10,
-    )
+    resp = _request("POST", url, json={"pokemon": battle_team}, headers=_auth_headers(token))
+    if resp is None:
+        return
     if resp.status_code == 200:
         data = resp.json()
         console.print(
@@ -259,7 +303,7 @@ def submit_team(
             console.print("[bold green]Both teams are in -- the battle is LIVE![/bold green]")
             console.print(f"Submit moves with: [bold]pokedo battle move {battle_id}[/bold]")
     else:
-        console.print(f"[red]Error:[/red] {resp.json().get('detail', resp.text)}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
 
 
 @app.command("move")
@@ -275,12 +319,14 @@ def submit_move(
         return
 
     url = f"{_get_server_url()}/battles/{battle_id}/action"
-    resp = requests.post(
+    resp = _request(
+        "POST",
         url,
         json={"action_type": "attack", "move_index": move_index},
         headers=_auth_headers(token),
-        timeout=10,
     )
+    if resp is None:
+        return
     _handle_action_response(resp)
 
 
@@ -297,12 +343,14 @@ def switch_pokemon(
         return
 
     url = f"{_get_server_url()}/battles/{battle_id}/action"
-    resp = requests.post(
+    resp = _request(
+        "POST",
         url,
         json={"action_type": "switch", "switch_to": slot},
         headers=_auth_headers(token),
-        timeout=10,
     )
+    if resp is None:
+        return
     _handle_action_response(resp)
 
 
@@ -318,12 +366,14 @@ def forfeit_battle(
         return
 
     url = f"{_get_server_url()}/battles/{battle_id}/action"
-    resp = requests.post(
+    resp = _request(
+        "POST",
         url,
         json={"action_type": "forfeit"},
         headers=_auth_headers(token),
-        timeout=10,
     )
+    if resp is None:
+        return
     _handle_action_response(resp)
 
 
@@ -339,9 +389,11 @@ def battle_status(
         return
 
     url = f"{_get_server_url()}/battles/{battle_id}"
-    resp = requests.get(url, headers=_auth_headers(token), timeout=10)
+    resp = _request("GET", url, headers=_auth_headers(token))
+    if resp is None:
+        return
     if resp.status_code != 200:
-        console.print(f"[red]Error:[/red] {resp.json().get('detail', resp.text)}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
         return
 
     data = resp.json()
@@ -370,9 +422,18 @@ def battle_status(
             status_str = p.get("status", "none")
             if status_str == "none":
                 status_str = ""
-            move_names = ", ".join(m.get("display_name", m.get("name", "?")) for m in p.get("moves", []))
+            move_names = ", ".join(
+                m.get("display_name", m.get("name", "?")) for m in p.get("moves", [])
+            )
             style = "green" if not p.get("is_fainted") else "red dim"
-            table.add_row(f"{marker}{i}", p.get("name", "?").capitalize(), hp_str, status_str, move_names, style=style)
+            table.add_row(
+                f"{marker}{i}",
+                p.get("name", "?").capitalize(),
+                hp_str,
+                status_str,
+                move_names,
+                style=style,
+            )
 
         console.print(table)
 
@@ -387,7 +448,9 @@ def battle_status(
         opp_active = data["opponent_team"].get("active_index", 0)
         for i, p in enumerate(roster):
             marker = " >> " if i == opp_active else ""
-            hp_str = f"{p['current_hp']}/{p['max_hp']}" if p.get("current_hp") is not None else "???"
+            hp_str = (
+                f"{p['current_hp']}/{p['max_hp']}" if p.get("current_hp") is not None else "???"
+            )
             style = "red dim" if p.get("is_fainted") else ""
             table.add_row(f"{marker}{i}", p.get("name", "?").capitalize(), hp_str, style=style)
 
@@ -399,6 +462,8 @@ def battle_status(
             console.print("[bold green]You won![/bold green]")
         else:
             console.print(f"[bold red]{winner} won the battle.[/bold red]")
+    elif data.get("status") == "finished":
+        console.print("[bold yellow]The battle ended in a draw.[/bold yellow]")
 
     # Show last turn events if any
     turn_log = data.get("turn_log", [])
@@ -423,9 +488,11 @@ def battle_history(
         return
 
     url = f"{_get_server_url()}/battles/history/me"
-    resp = requests.get(url, headers=_auth_headers(token), params={"limit": limit}, timeout=10)
+    resp = _request("GET", url, headers=_auth_headers(token), params={"limit": limit})
+    if resp is None:
+        return
     if resp.status_code != 200:
-        console.print(f"[red]Error:[/red] {resp.text}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
         return
 
     battles = resp.json()
@@ -442,8 +509,13 @@ def battle_history(
 
     for b in battles:
         opp = b["opponent"] if b["challenger"] == username else b["challenger"]
-        result = "WIN" if b.get("winner") == username else "LOSS"
-        result_style = "green bold" if result == "WIN" else "red"
+        winner = b.get("winner")
+        if winner == username:
+            result, result_style = "WIN", "green bold"
+        elif winner is None:
+            result, result_style = "DRAW", "yellow"
+        else:
+            result, result_style = "LOSS", "red"
         table.add_row(
             b.get("created_at", "?")[:10],
             opp,
@@ -460,7 +532,7 @@ def battle_history(
 # ---------------------------------------------------------------------------
 
 
-def _handle_action_response(resp: requests.Response) -> None:
+def _handle_action_response(resp: httpx.Response) -> None:
     """Handle and display the response from an action submission."""
     if resp.status_code != 200:
         console.print(f"[red]Error:[/red] {resp.json().get('detail', resp.text)}")
@@ -494,6 +566,8 @@ def _handle_action_response(resp: requests.Response) -> None:
 
         if data.get("winner"):
             console.print(f"\n[bold]Winner: {data['winner']}[/bold]")
+        elif data.get("status") == "finished":
+            console.print("\n[bold yellow]The battle ended in a draw.[/bold yellow]")
         else:
             console.print("\n[dim]Waiting for next turn...[/dim]")
     else:

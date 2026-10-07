@@ -763,14 +763,21 @@ def get_pokemon_sync(pokemon_id: int) -> dict | None:
     return asyncio.run(client.get_pokemon(pokemon_id))
 
 
+async def create_pokemon(
+    pokemon_id: int, is_shiny: bool = False, catch_location: str | None = None
+) -> Pokemon | None:
+    """Create a Pokemon instance using the current event loop."""
+    client = PokeAPIClient()
+    return await client.create_pokemon_instance(pokemon_id, is_shiny, catch_location)
+
+
 def create_pokemon_sync(
     pokemon_id: int, is_shiny: bool = False, catch_location: str | None = None
 ) -> Pokemon | None:
     """Synchronous wrapper for creating Pokemon instance."""
     import asyncio
 
-    client = PokeAPIClient()
-    return asyncio.run(client.create_pokemon_instance(pokemon_id, is_shiny, catch_location))
+    return asyncio.run(create_pokemon(pokemon_id, is_shiny, catch_location))
 
 
 def create_pokedex_entry_sync(pokemon_id: int) -> PokedexEntry | None:

@@ -1,8 +1,10 @@
 """Persistence tests for the SQLite database layer."""
 
+import sqlite3
 from datetime import date
 
 from pokedo.core.pokemon import PokedexEntry, PokemonRarity
+from pokedo.core.rewards import EncounterResult
 
 
 def test_save_and_load_pokedex_entry(isolated_db):
@@ -73,3 +75,41 @@ def test_pokemon_evs_and_ivs_persist(isolated_db, sample_pokemon):
     assert loaded is not None
     assert loaded.evs["atk"] == 12
     assert loaded.ivs["hp"] == 31
+
+
+def test_complete_task_rolls_back_when_reward_persistence_fails(isolated_db, sample_task):
+    """A failed reward write must leave the task pending and trainer unchanged."""
+    trainer = isolated_db.get_or_create_trainer("Rollback Trainer")
+    isolated_db.create_task(sample_task, trainer.id)
+    result = EncounterResult(
+        encountered=False,
+        caught=False,
+        xp_earned=sample_task.xp_reward,
+        items_earned={},
+    )
+
+    with isolated_db._get_connection() as conn:
+        conn.execute(
+            """
+            CREATE TRIGGER fail_trainer_update
+            BEFORE UPDATE ON trainer
+            BEGIN
+                SELECT RAISE(ABORT, 'intentional failure');
+            END
+            """
+        )
+
+    try:
+        isolated_db.complete_task_with_rewards(sample_task, trainer, result)
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Expected the reward persistence failure to propagate")
+
+    persisted_task = isolated_db.get_tasks(include_completed=True)[0]
+    persisted_trainer = isolated_db.get_trainer_by_id(trainer.id)
+
+    assert persisted_task.is_completed is False
+    assert persisted_task.completed_at is None
+    assert persisted_trainer is not None
+    assert persisted_trainer.tasks_completed == 0

@@ -121,7 +121,12 @@ pokedo/
 │   ├── pokeapi.py        # PokeAPI client (async, cached)
 │   ├── server_models.py  # Postgres models (ServerUser, BattleRecord)
 │   └── sync.py           # Sync client and change queue
-├── server.py             # FastAPI server (auth, battles, leaderboard)
+├── server/               # FastAPI server package
+│   ├── __init__.py       # App creation, router registration
+│   ├── schemas.py        # Request/response models
+│   ├── deps.py           # Dependencies (DB session, current user)
+│   ├── routers/          # auth, battles, leaderboard, misc (health/sync)
+│   └── services/         # battle service (ELO, team censoring)
 └── utils/                # Utilities
     ├── config.py         # Configuration
     ├── helpers.py        # Helper functions

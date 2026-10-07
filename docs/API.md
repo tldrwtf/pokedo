@@ -993,7 +993,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     """Create a JWT access token."""
 ```
 
-### Endpoints (`pokedo/server.py`)
+### Endpoints (`pokedo/server/`)
 
 The server uses the FastAPI `lifespan` context manager (not the deprecated `@app.on_event`).
 

@@ -3,7 +3,9 @@
 from datetime import date, datetime
 
 import pytest
+from textual.app import App, ComposeResult
 
+from pokedo.core.rewards import EncounterResult
 from pokedo.core.task import (
     RecurrenceType,
     Task,
@@ -11,13 +13,11 @@ from pokedo.core.task import (
     TaskDifficulty,
     TaskPriority,
 )
-from pokedo.core.pokemon import Pokemon
-from pokedo.core.rewards import EncounterResult
 from pokedo.tui.widgets.common import (
+    CATEGORY_ICONS,
     DIFFICULTY_COLORS,
     PRIORITY_COLORS,
     TYPE_COLORS,
-    CATEGORY_ICONS,
 )
 
 
@@ -373,6 +373,66 @@ class TestTaskCompletionFlow:
         """Completed task has completion timestamp."""
         assert completed_task.completed_at is not None
 
+    @pytest.mark.asyncio
+    async def test_worker_result_is_committed_on_main_thread(
+        self, isolated_db, sample_task, monkeypatch
+    ):
+        """A worker result is persisted atomically before showing the modal."""
+        from pokedo.core.rewards import RewardEngine
+        from pokedo.tui.screens import tasks as tasks_module
+        from pokedo.tui.screens.tasks import TaskManagementScreen
+
+        trainer = isolated_db.get_or_create_trainer("Worker Trainer")
+        isolated_db.create_task(sample_task, trainer.id)
+        result = EncounterResult(
+            encountered=False,
+            caught=False,
+            xp_earned=sample_task.xp_reward,
+            trainer=trainer,
+        )
+
+        async def calculate_rewards(_engine, task, working_trainer):
+            return result
+
+        class SelectionScreen(TaskManagementScreen):
+            def __init__(self):
+                super().__init__()
+                self.notifications = []
+
+            def notify(self, message, severity=None, timeout=None):
+                self.notifications.append((message, severity))
+
+            def _get_current_list(self):
+                class TaskList:
+                    def get_selected_task(self):
+                        return sample_task
+
+                return TaskList()
+
+        class TestApp(App):
+            def compose(self) -> ComposeResult:
+                yield SelectionScreen()
+
+        monkeypatch.setattr(tasks_module, "db", isolated_db)
+        monkeypatch.setattr(RewardEngine, "process_task_completion_async", calculate_rewards)
+
+        app = TestApp()
+        async with app.run_test() as pilot:
+            screen = app.query_one(SelectionScreen)
+            await screen.action_complete_task()
+            await pilot.pause()
+
+            assert tasks_module.db is isolated_db
+            assert screen._completion_worker is None
+            assert screen.notifications == [], screen.notifications
+            assert len(app.screen_stack) == 2
+            persisted = isolated_db.get_tasks(
+                include_completed=True,
+                trainer_id=trainer.id,
+            )[0]
+            assert persisted.is_completed is True
+            assert persisted.completed_at is not None
+
 
 # Async TUI tests using Textual's pilot
 class TestTUIAppIntegration:
@@ -394,9 +454,9 @@ class TestTUIAppIntegration:
     async def test_widgets_can_be_imported(self):
         """All TUI widgets can be imported."""
         from pokedo.tui.widgets.common import ConfirmModal, NotificationWidget
-        from pokedo.tui.widgets.task_list import TaskListView, TaskDetailPanel
+        from pokedo.tui.widgets.encounter import EncounterWidget, TaskCompletionModal
         from pokedo.tui.widgets.task_forms import AddTaskModal, EditTaskModal
-        from pokedo.tui.widgets.encounter import TaskCompletionModal, EncounterWidget
+        from pokedo.tui.widgets.task_list import TaskDetailPanel, TaskListView
 
         assert ConfirmModal is not None
         assert NotificationWidget is not None

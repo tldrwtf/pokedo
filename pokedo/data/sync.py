@@ -17,14 +17,31 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-import requests
+import httpx
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from pokedo.utils.config import config
 
-DATABASE_URL = os.getenv("POKEDO_DATABASE_URL", f"sqlite:///{config.db_path}")
-engine = create_engine(DATABASE_URL, echo=False)
+# Client-side sync queue DB. Uses its own env var so it cannot collide with
+# the server's POKEDO_DATABASE_URL (which defaults to Postgres). For backward
+# compatibility, a sqlite POKEDO_DATABASE_URL is still honored.
+_pokedo_db_url = os.getenv("POKEDO_DATABASE_URL", "")
+SYNC_DATABASE_URL = (
+    os.getenv("POKEDO_SYNC_DATABASE_URL")
+    or (_pokedo_db_url if _pokedo_db_url.startswith("sqlite:///") else None)
+    or f"sqlite:///{config.db_path}"
+)
+
+_engine = None
+
+
+def get_sync_engine():
+    """Return the sync-queue engine, creating it lazily on first use."""
+    global _engine
+    if _engine is None:
+        _engine = create_engine(SYNC_DATABASE_URL, echo=False)
+    return _engine
 
 
 class ChangeAction(str):
@@ -46,19 +63,19 @@ class Change(SQLModel, table=True):
 
 
 def init_changes_table() -> None:
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(get_sync_engine())
 
 
 def queue_change(entity_id: str, entity_type: str, action: str, payload: dict[str, Any]) -> str:
     c = Change(entity_id=entity_id, entity_type=entity_type, action=action, payload=payload)
-    with Session(engine) as session:
+    with Session(get_sync_engine()) as session:
         session.add(c)
         session.commit()
         return c.id
 
 
 def get_unsynced_changes(limit: int = 100) -> list[Change]:
-    with Session(engine) as session:
+    with Session(get_sync_engine()) as session:
         q = select(Change).where(Change.synced.is_(False)).order_by(Change.timestamp)
         results = session.exec(q).all()
         return results[:limit]
@@ -67,7 +84,7 @@ def get_unsynced_changes(limit: int = 100) -> list[Change]:
 def mark_synced(change_ids: list[str]) -> None:
     if not change_ids:
         return
-    with Session(engine) as session:
+    with Session(get_sync_engine()) as session:
         q = select(Change).where(Change.id.in_(change_ids))
         items = session.exec(q).all()
         for it in items:
@@ -102,7 +119,8 @@ def push_changes(server_url: str, batch_size: int = 50, timeout: int = 10) -> di
 
     url = server_url.rstrip("/") + "/sync"
     try:
-        resp = requests.post(url, json=payload, timeout=timeout)
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, json=payload)
         resp.raise_for_status()
     except Exception as exc:
         return {"pushed": 0, "failures": len(payload), "details": [str(exc)]}

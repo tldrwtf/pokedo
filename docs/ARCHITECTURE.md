@@ -35,8 +35,7 @@ PokeDo is a gamified task manager that combines productivity tracking with Pokem
 - PostgreSQL (Server database via psycopg2)
 - Bcrypt (Direct password hashing)
 - python-jose (JWT token generation/verification)
-- httpx (Async HTTP client for PokeAPI)
-- requests (Sync HTTP client for Server Sync)
+- httpx (HTTP client: async for PokeAPI, sync for CLI and sync client)
 
 ---
 
@@ -78,7 +77,12 @@ pokedo/
 │   ├── pokeapi.py        # PokeAPI client (async, cached)
 │   ├── server_models.py  # Postgres models (ServerUser, BattleRecord, LeaderboardEntry)
 │   └── sync.py           # Sync client and change queue
-├── server.py             # FastAPI server (auth, battles, leaderboard, sync)
+├── server/               # FastAPI server package
+│   ├── __init__.py       # App creation, router registration
+│   ├── schemas.py        # Request/response models
+│   ├── deps.py           # Dependencies (DB session, current user)
+│   ├── routers/          # auth, battles, leaderboard, misc (health/sync)
+│   └── services/         # battle service (ELO, team censoring)
 └── utils/                # Utilities
     ├── config.py         # Configuration management
     ├── helpers.py        # Helper functions
@@ -113,17 +117,20 @@ The CLI layer handles all user interaction through the Typer framework.
 - Uses the same data access layer (`data/`) for read-only views
 - Textual lifecycle internals are reserved: do not use `self._task` for domain objects in widgets/screens/modals. Use explicit names like `self._selected_task` or `self._editing_task`.
 
-### Server Layer (`server.py`)
+### Server Layer (`server/`)
 
 Handles centralized multiplayer operations, authentication, and synchronization.
 
-**`server.py`** - FastAPI Application
-- Uses the `lifespan` context manager pattern (not deprecated `on_event`)
-- User registration and JWT authentication (`/register`, `/token`)
-- Full PvP battle API (challenge, accept/decline, team submission, turn actions)
-- Leaderboard queries with ELO-based rankings
+**`server/`** - FastAPI Application (package)
+- `__init__.py`: Creates the app (lifespan context manager pattern, not deprecated `on_event`) and registers routers
+- `schemas.py`: Request/response models (UserCreate, BattleSummary, ...)
+- `deps.py`: Shared dependencies (DB session, current-user via JWT)
+- `routers/auth.py`: User registration and JWT authentication (`/register`, `/token`, `/users/me`)
+- `routers/battles.py`: Full PvP battle API (challenge, accept/decline, team submission, turn actions)
+- `routers/leaderboard.py`: Leaderboard queries with ELO-based rankings
+- `routers/misc.py`: Health check (`/health`) and protected sync endpoint (`/sync`)
+- `services/battle.py`: ELO application and opponent-team censoring
 - Server-authoritative battle resolution via `BattleEngine`
-- Protected synchronization endpoint (`/sync`)
 - PostgreSQL-backed via SQLModel (ServerUser, BattleRecord tables)
 
 **`data/server_models.py`** - Server Database Models
@@ -242,7 +249,7 @@ class DailyWellbeing:
 
 **`sync.py`** - Synchronization Client
 - Local change queue management (SQLModel `Change` entity)
-- Sync push operations using `requests`
+- Sync push operations using `httpx`
 
 ---
 

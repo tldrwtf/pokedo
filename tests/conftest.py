@@ -1,12 +1,31 @@
 """Shared fixtures for PokeDo tests."""
 
+# ruff: noqa: E402  -- env vars must be set before any pokedo import below.
+
 import importlib
+import os
 import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+# Must run before any pokedo import: core.auth fail-fasts without a key.
+os.environ.setdefault("POKEDO_SECRET_KEY", "test-secret-key-not-for-production")
+# Generous credential-endpoint budget for tests; the 429 path is tested explicitly.
+os.environ.setdefault("POKEDO_AUTH_RATE_LIMIT", "200")
+
 import pytest
 from typer.testing import CliRunner
+
+
+@pytest.fixture(autouse=True)
+def _fresh_auth_rate_limit():
+    """Give every test a full rate-limit budget (limit is tested explicitly)."""
+    from pokedo.server import AUTH_RATE_LIMIT
+
+    AUTH_RATE_LIMIT.clear()
+    yield
+    AUTH_RATE_LIMIT.clear()
+
 
 from pokedo.core.battle import (
     BattleFormat,
@@ -447,8 +466,12 @@ def isolated_db(tmp_path, monkeypatch) -> Database:
 # ---------------------------------------------------------------------------
 
 
-def _battle_move(name="tackle", type_="normal", power=40, accuracy=100, pp=35, damage_class=DamageClass.PHYSICAL) -> Move:
-    return Move(name=name, type=type_, damage_class=damage_class, power=power, accuracy=accuracy, pp=pp)
+def _battle_move(
+    name="tackle", type_="normal", power=40, accuracy=100, pp=35, damage_class=DamageClass.PHYSICAL
+) -> Move:
+    return Move(
+        name=name, type=type_, damage_class=damage_class, power=power, accuracy=accuracy, pp=pp
+    )
 
 
 @pytest.fixture
@@ -494,9 +517,22 @@ def active_battle():
         trainer_name="Ash",
         roster=[
             BattlePokemon(
-                pokemon_id=1, pokedex_id=25, name="pikachu", type1="electric",
-                max_hp=100, current_hp=100, atk=55, defense=40, spa=50, spd=50, spe=90, level=50,
-                moves=[_battle_move(), _battle_move("thunderbolt", "electric", 90, 100, 15, DamageClass.SPECIAL)],
+                pokemon_id=1,
+                pokedex_id=25,
+                name="pikachu",
+                type1="electric",
+                max_hp=100,
+                current_hp=100,
+                atk=55,
+                defense=40,
+                spa=50,
+                spd=50,
+                spe=90,
+                level=50,
+                moves=[
+                    _battle_move(),
+                    _battle_move("thunderbolt", "electric", 90, 100, 15, DamageClass.SPECIAL),
+                ],
             )
         ],
     )
@@ -505,9 +541,22 @@ def active_battle():
         trainer_name="Gary",
         roster=[
             BattlePokemon(
-                pokemon_id=2, pokedex_id=4, name="charmander", type1="fire",
-                max_hp=100, current_hp=100, atk=52, defense=43, spa=60, spd=50, spe=65, level=50,
-                moves=[_battle_move(), _battle_move("ember", "fire", 40, 100, 25, DamageClass.SPECIAL)],
+                pokemon_id=2,
+                pokedex_id=4,
+                name="charmander",
+                type1="fire",
+                max_hp=100,
+                current_hp=100,
+                atk=52,
+                defense=43,
+                spa=60,
+                spd=50,
+                spe=65,
+                level=50,
+                moves=[
+                    _battle_move(),
+                    _battle_move("ember", "fire", 40, 100, 25, DamageClass.SPECIAL),
+                ],
             )
         ],
     )

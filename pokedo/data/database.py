@@ -4,10 +4,11 @@ import json
 import os
 import sqlite3
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from pokedo.core.pokemon import PokedexEntry, Pokemon, PokemonRarity
+from pokedo.core.rewards import EncounterResult
 from pokedo.core.task import RecurrenceType, Task, TaskCategory, TaskDifficulty, TaskPriority
 from pokedo.core.trainer import Streak, Trainer, TrainerClass
 from pokedo.core.wellbeing import (
@@ -610,17 +611,244 @@ class Database:
                 ),
             )
 
-    def delete_task(self, task_id: int, trainer_id: int | None = None) -> None:
-        """Delete a task."""
-        resolved_trainer_id = self._resolve_trainer_id(trainer_id)
-        if resolved_trainer_id is None:
-            return
+    def complete_task_with_rewards(
+        self,
+        task: Task,
+        trainer: Trainer,
+        result: EncounterResult,
+    ) -> None:
+        """Persist task completion and rewards using one SQLite transaction."""
+        if not isinstance(result, EncounterResult):
+            raise TypeError("result must be an EncounterResult")
+        if task.id is None:
+            raise ValueError("Cannot complete a task without an ID")
+
+        persistence_trainer = result.trainer or trainer
+        if persistence_trainer.id is None:
+            raise ValueError("Cannot complete a task for a trainer without an ID")
+
+        completed_at = datetime.now()
+        task_id = task.id
+        trainer_id = persistence_trainer.id
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "DELETE FROM tasks WHERE id = ? AND trainer_id = ?",
-                (task_id, resolved_trainer_id),
+                """
+                UPDATE tasks
+                SET completed_at = ?, is_completed = 1
+                WHERE id = ? AND trainer_id = ? AND is_completed = 0
+                """,
+                (completed_at.isoformat(), task_id, trainer_id),
             )
+            if cursor.rowcount != 1:
+                raise ValueError("Task is no longer pending for this trainer")
+
+            badges_data = [
+                {"id": badge.id, "earned_at": badge.earned_at.isoformat() if badge.earned_at else None}
+                for badge in persistence_trainer.badges
+                if badge.is_earned
+            ]
+            cursor.execute(
+                """
+                UPDATE trainer SET
+                    name = ?, trainer_class = ?, total_xp = ?, tasks_completed = ?,
+                    tasks_completed_today = ?, pokemon_caught = ?, pokemon_released = ?,
+                    evolutions_triggered = ?, pokedex_seen = ?, pokedex_caught = ?,
+                    daily_streak_count = ?, daily_streak_best = ?, daily_streak_last_date = ?,
+                    wellbeing_streak_count = ?, wellbeing_streak_best = ?,
+                    wellbeing_streak_last_date = ?, badges = ?, inventory = ?,
+                    favorite_pokemon_id = ?, last_active_date = ?, battle_wins = ?,
+                    battle_losses = ?, battle_draws = ?, elo_rating = ?, pvp_rank = ?
+                WHERE id = ?
+                """,
+                (
+                    persistence_trainer.name,
+                    persistence_trainer.trainer_class.value,
+                    persistence_trainer.total_xp,
+                    persistence_trainer.tasks_completed,
+                    persistence_trainer.tasks_completed_today,
+                    persistence_trainer.pokemon_caught,
+                    persistence_trainer.pokemon_released,
+                    persistence_trainer.evolutions_triggered,
+                    persistence_trainer.pokedex_seen,
+                    persistence_trainer.pokedex_caught,
+                    persistence_trainer.daily_streak.current_count,
+                    persistence_trainer.daily_streak.best_count,
+                    persistence_trainer.daily_streak.last_activity_date.isoformat()
+                    if persistence_trainer.daily_streak.last_activity_date
+                    else None,
+                    persistence_trainer.wellbeing_streak.current_count,
+                    persistence_trainer.wellbeing_streak.best_count,
+                    persistence_trainer.wellbeing_streak.last_activity_date.isoformat()
+                    if persistence_trainer.wellbeing_streak.last_activity_date
+                    else None,
+                    json.dumps(badges_data),
+                    json.dumps(persistence_trainer.inventory),
+                    persistence_trainer.favorite_pokemon_id,
+                    persistence_trainer.last_active_date.isoformat()
+                    if persistence_trainer.last_active_date
+                    else None,
+                    persistence_trainer.battle_wins,
+                    persistence_trainer.battle_losses,
+                    persistence_trainer.battle_draws,
+                    persistence_trainer.elo_rating,
+                    persistence_trainer.pvp_rank,
+                    trainer_id,
+                ),
+            )
+
+            if result.ev_pokemon_id is not None:
+                evs = result.evs_earned or {}
+                if not evs:
+                    raise ValueError("EV reward is missing its stat and amount")
+                stat = evs["stat"]
+                amount = evs["amount"]
+                cursor.execute(
+                    """
+                    SELECT evs FROM pokemon WHERE id = ? AND trainer_id = ?
+                    """,
+                    (result.ev_pokemon_id, trainer_id),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise ValueError("EV target Pokemon does not belong to this trainer")
+                active_evs = json.loads(row["evs"])
+                active_evs[stat] = active_evs.get(stat, 0) + amount
+                cursor.execute(
+                    "UPDATE pokemon SET evs = ? WHERE id = ? AND trainer_id = ?",
+                    (json.dumps(active_evs), result.ev_pokemon_id, trainer_id),
+                )
+
+            if result.encountered and result.pokemon:
+                pokemon = result.pokemon
+                cursor.execute(
+                    """
+                    INSERT INTO pokemon (
+                        trainer_id, pokedex_id, name, nickname, type1, type2,
+                        level, xp, happiness, evs, ivs, base_stats, caught_at,
+                        is_shiny, catch_location, is_active, is_favorite,
+                        can_evolve, evolution_id, evolution_level,
+                        evolution_method, sprite_url, sprite_path, nature, moves
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        trainer_id,
+                        pokemon.pokedex_id,
+                        pokemon.name,
+                        pokemon.nickname,
+                        pokemon.type1,
+                        pokemon.type2,
+                        pokemon.level,
+                        pokemon.xp,
+                        pokemon.happiness,
+                        json.dumps(pokemon.evs),
+                        json.dumps(pokemon.ivs),
+                        json.dumps(pokemon.base_stats),
+                        pokemon.caught_at.isoformat(),
+                        int(pokemon.is_shiny),
+                        pokemon.catch_location,
+                        int(pokemon.is_active),
+                        int(pokemon.is_favorite),
+                        int(pokemon.can_evolve),
+                        pokemon.evolution_id,
+                        pokemon.evolution_level,
+                        pokemon.evolution_method,
+                        pokemon.sprite_url,
+                        pokemon.sprite_path,
+                        pokemon.nature,
+                        json.dumps([move.model_dump() for move in pokemon.moves]),
+                    ),
+                )
+                pokemon.id = cursor.lastrowid
+
+                if result.caught:
+                    cursor.execute(
+                        """
+                        UPDATE trainer
+                        SET pokemon_caught = pokemon_caught + 1
+                        WHERE id = ?
+                        """,
+                        (trainer_id,),
+                    )
+
+                cursor.execute(
+                    """
+                    SELECT * FROM pokedex
+                    WHERE trainer_id = ? AND pokedex_id = ?
+                    """,
+                    (trainer_id, pokemon.pokedex_id),
+                )
+                entry_row = cursor.fetchone()
+                if entry_row is not None:
+                    entry = self._row_to_pokedex_entry(entry_row)
+                    entry.is_seen = True
+                    entry.is_caught = entry.is_caught or result.caught
+                    entry.times_caught += 1 if result.caught else 0
+                    entry.first_caught_at = entry.first_caught_at or (
+                        pokemon.caught_at if result.caught else None
+                    )
+                    entry.shiny_caught = entry.shiny_caught or pokemon.is_shiny
+                    cursor.execute(
+                        """
+                        INSERT OR REPLACE INTO pokedex (
+                            trainer_id, pokedex_id, name, type1, type2, base_stats,
+                            is_seen, is_caught, times_caught, first_caught_at,
+                            shiny_caught, sprite_url, rarity, evolves_from, evolves_to
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            trainer_id,
+                            entry.pokedex_id,
+                            entry.name,
+                            entry.type1,
+                            entry.type2,
+                            json.dumps(entry.base_stats),
+                            int(entry.is_seen),
+                            int(entry.is_caught),
+                            entry.times_caught,
+                            entry.first_caught_at.isoformat() if entry.first_caught_at else None,
+                            int(entry.shiny_caught),
+                            entry.sprite_url,
+                            entry.rarity.value,
+                            entry.evolves_from,
+                            json.dumps(entry.evolves_to),
+                        ),
+                    )
+
+            if task.recurrence != RecurrenceType.NONE and task.due_date:
+                next_due = task.due_date
+                if task.recurrence == RecurrenceType.DAILY:
+                    next_due += timedelta(days=1)
+                elif task.recurrence == RecurrenceType.WEEKLY:
+                    next_due += timedelta(weeks=1)
+                elif task.recurrence == RecurrenceType.MONTHLY:
+                    next_due += timedelta(days=30)
+                cursor.execute(
+                    """
+                    INSERT INTO tasks (
+                        trainer_id, title, description, category, difficulty,
+                        priority, created_at, due_date, is_completed, is_archived,
+                        recurrence, parent_task_id, tags
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)
+                    """,
+                    (
+                        trainer_id,
+                        task.title,
+                        task.description,
+                        task.category.value,
+                        task.difficulty.value,
+                        task.priority.value,
+                        datetime.now().isoformat(),
+                        next_due.isoformat(),
+                        task.recurrence.value,
+                        task.id,
+                        json.dumps(task.tags),
+                    ),
+                )
+
+        task.is_completed = True
+        task.completed_at = completed_at
 
     def _row_to_task(self, row: sqlite3.Row) -> Task:
         """Convert database row to Task model."""
