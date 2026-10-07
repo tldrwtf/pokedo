@@ -15,7 +15,7 @@
 
 3. Sync API skeleton
 
-- [x] Add FastAPI `pokedo/server.py` and Docker compose
+- [x] Add FastAPI `pokedo/server` (now a package) and Docker compose
 - [x] Add tests for `/sync` endpoint (and auth)
 
 4. Developer ergonomics
@@ -41,7 +41,7 @@ Extra items:
 2. Server infrastructure
 
 - [x] `pokedo/data/server_models.py` -- ServerUser, BattleRecord (SQLModel/Postgres)
-- [x] `pokedo/server.py` -- Full REST API (auth, battles, leaderboard, sync)
+- [x] `pokedo/server` package -- Full REST API (auth, battles, leaderboard, sync)
 - [x] FastAPI lifespan context manager (replaced deprecated `on_event`)
 - [x] PostgreSQL + Docker Compose support
 

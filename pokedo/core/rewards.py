@@ -1,5 +1,6 @@
 """Reward and encounter system for PokeDo."""
 
+import asyncio
 import random
 from datetime import date
 
@@ -13,8 +14,8 @@ from pokedo.data.pokeapi import (
     PSEUDO_LEGENDARY_IDS,
     STARTER_FINAL_IDS,
     ULTRA_BEAST_IDS,
-    create_pokemon_sync,
     create_pokedex_entry_sync,
+    create_pokemon_sync,
 )
 from pokedo.utils.config import config
 from pokedo.utils.helpers import weighted_random_choice
@@ -103,6 +104,8 @@ class EncounterResult:
         streak_count: int = 0,
         badges_earned: list | None = None,
         items_earned: dict | None = None,
+        ev_pokemon_id: int | None = None,
+        trainer: Trainer | None = None,
     ):
         self.encountered = encountered
         self.caught = caught
@@ -116,6 +119,8 @@ class EncounterResult:
         self.streak_count = streak_count
         self.badges_earned = badges_earned or []
         self.items_earned = items_earned or {}
+        self.ev_pokemon_id = ev_pokemon_id
+        self.trainer = trainer
 
 
 class RewardEngine:
@@ -161,8 +166,44 @@ class RewardEngine:
     def process_task_completion(
         self, task: Task, trainer: Trainer, type_affinity_bonus: list[str] | None = None
     ) -> EncounterResult:
-        """Process task completion and generate rewards."""
+        """Process task completion and generate rewards synchronously."""
+        return asyncio.run(
+            self._process_task_completion(
+                task,
+                trainer,
+                type_affinity_bonus,
+                self._create_pokemon_sync_async,
+                persist_active_evs=True,
+            )
+        )
+
+    async def process_task_completion_async(
+        self, task: Task, trainer: Trainer, type_affinity_bonus: list[str] | None = None
+    ) -> EncounterResult:
+        """Process task completion without blocking the active event loop."""
+        return await self._process_task_completion(
+            task,
+            trainer,
+            type_affinity_bonus,
+            self._create_pokemon_async,
+            persist_active_evs=False,
+        )
+
+    async def _process_task_completion(
+        self,
+        task: Task,
+        trainer: Trainer,
+        type_affinity_bonus: list[str] | None,
+        create_pokemon,
+        persist_active_evs: bool,
+    ) -> EncounterResult:
+        """Calculate rewards and create the encounter using an async factory."""
         result = EncounterResult(encountered=False, caught=False)
+        if persist_active_evs:
+            result.trainer = trainer
+        else:
+            result.trainer = trainer.model_copy(deep=True)
+        trainer = result.trainer
 
         # Award XP
         result.xp_earned = task.xp_reward
@@ -171,22 +212,25 @@ class RewardEngine:
             result.level_up = True
             result.new_level = new_level
 
-        # Award EVs to active Pokemon
+        # Award EVs to the active lead Pokemon. The async path records the target
+        # so the database transaction can persist it atomically.
         from pokedo.data.database import db
 
         active_team = db.get_active_team()
         if active_team:
-            active_pokemon = active_team[0]  # Lead Pokemon gets EVs
+            active_pokemon = active_team[0]
             stat = task.stat_affinity
             amount = task.ev_yield
             actual_added = active_pokemon.add_evs(stat, amount)
             if actual_added > 0:
-                db.save_pokemon(active_pokemon)
+                result.ev_pokemon_id = active_pokemon.id
                 result.evs_earned = {
                     "pokemon": active_pokemon.display_name,
                     "stat": stat,
                     "amount": actual_added,
                 }
+                if persist_active_evs:
+                    db.save_pokemon(active_pokemon)
 
         # Update streak
         today = date.today()
@@ -202,24 +246,17 @@ class RewardEngine:
         if random.random() < encounter_chance:
             result.encountered = True
 
-            # Determine rarity
             rarity_weights = task.get_pokemon_rarity_weights()
             rarity = self._select_rarity(rarity_weights, streak_count)
-
-            # Check for shiny
             result.is_shiny = self._check_shiny(streak_count)
-
-            # Select Pokemon
             pokemon_id = self._select_pokemon(rarity, task.get_type_affinity(), type_affinity_bonus)
 
-            # Create Pokemon instance
-            pokemon = create_pokemon_sync(
+            pokemon = await create_pokemon(
                 pokemon_id, is_shiny=result.is_shiny, catch_location=task.category.value
             )
 
             if pokemon:
                 pokemon.assign_ivs()
-                # Attempt catch
                 ball_used = self._choose_ball(trainer)
                 catch_rate = self._calculate_catch_rate(rarity, trainer, ball_used)
                 if ball_used:
@@ -228,14 +265,22 @@ class RewardEngine:
                     result.caught = True
                     result.pokemon = pokemon
                 else:
-                    # Pokemon escaped but still return it for display
                     result.pokemon = pokemon
 
-        # Update trainer stats
         trainer.tasks_completed += 1
         trainer.last_active_date = today
 
         return result
+
+    async def _create_pokemon_sync_async(self, pokemon_id: int, **kwargs) -> Pokemon | None:
+        """Run the synchronous factory in a worker thread to avoid nested loops."""
+        return await asyncio.to_thread(create_pokemon_sync, pokemon_id, **kwargs)
+
+    async def _create_pokemon_async(self, pokemon_id: int, **kwargs) -> Pokemon | None:
+        """Create a Pokemon instance without starting a nested event loop."""
+        from pokedo.data.pokeapi import create_pokemon
+
+        return await create_pokemon(pokemon_id, **kwargs)
 
     def _calculate_encounter_chance(self, task: Task, trainer: Trainer) -> float:
         """Calculate chance of encountering a Pokemon."""

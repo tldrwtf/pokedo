@@ -249,4 +249,5 @@ class TestSpriteShortcut:
         """pokedo sprite --help should show usage info."""
         result = cli_runner.invoke(app, ["sprite", "--help"])
         assert result.exit_code == 0
-        assert "IDENTIFIER" in result.output
+        # Typer renders the metavar as IDENTIFIER (older) or {identifier} (newer)
+        assert "identifier" in result.output.lower()

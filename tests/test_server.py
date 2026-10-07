@@ -399,7 +399,7 @@ class TestTeamSubmission:
 
     def test_team_nonparticipant_rejected(self, client: TestClient):
         battle_id, _, _ = self._setup_team_select(client)
-        brock_token = _login(client, "brock", "onix789")
+        brock_token = _login(client, "brock", "onix7890")
 
         team = {"pokemon": [_make_battle_pokemon_dict()]}
         resp = client.post(
@@ -519,7 +519,7 @@ class TestActionSubmission:
 
     def test_nonparticipant_rejected(self, client: TestClient):
         battle_id, _, _ = self._setup_active_battle(client)
-        brock_token = _login(client, "brock", "onix789")
+        brock_token = _login(client, "brock", "onix7890")
         resp = client.post(
             f"/battles/{battle_id}/action",
             json={"action_type": "attack", "move_index": 0},
@@ -579,7 +579,7 @@ class TestGetBattle:
 
     def test_nonparticipant_rejected(self, client: TestClient):
         battle_id, _, _ = self._setup_active_battle(client)
-        brock_token = _login(client, "brock", "onix789")
+        brock_token = _login(client, "brock", "onix7890")
         resp = client.get(
             f"/battles/{battle_id}",
             headers=_auth_header(brock_token),
@@ -1062,7 +1062,7 @@ class TestBattleHistoryEndpoint:
         )
         battle_id = resp.json()["battle_id"]
 
-        brock_token = _login(client, "brock", "onix789")
+        brock_token = _login(client, "brock", "onix7890")
         resp = client.get(
             f"/battles/{battle_id}/history",
             headers=_auth_header(brock_token),

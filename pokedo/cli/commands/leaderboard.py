@@ -1,8 +1,8 @@
 """CLI commands for the PvP leaderboard."""
 
-from typing import Optional
+import time
 
-import requests
+import httpx
 import typer
 from rich import box
 from rich.console import Console
@@ -21,26 +21,58 @@ def _get_server_url() -> str:
     return os.getenv("POKEDO_SERVER_URL", SERVER_URL)
 
 
+def _request(method: str, url: str, *, retries: int = 1, **kwargs) -> httpx.Response | None:
+    """HTTP request with friendly network-error handling (mirrors battle client)."""
+    kwargs.setdefault("timeout", 10)
+    for attempt in range(retries + 1):
+        try:
+            return httpx.request(method, url, **kwargs)
+        except (httpx.ConnectError, httpx.TimeoutException):
+            if attempt >= retries:
+                console.print(
+                    "[red]Cannot reach the PokeDo server.[/red] Is it running "
+                    f"at {_get_server_url()}?"
+                )
+                return None
+            time.sleep(1.0)
+        except httpx.HTTPError as exc:
+            console.print(f"[red]Request failed:[/red] {exc}")
+            return None
+    return None
+
+
+def _error_detail(resp: httpx.Response) -> str:
+    """Extract a safe error message from a non-2xx response."""
+    try:
+        data = resp.json()
+    except ValueError:
+        text = resp.text.strip()
+        return text[:200] or f"HTTP {resp.status_code}"
+    if isinstance(data, dict):
+        return str(data.get("detail", resp.text.strip()[:200] or f"HTTP {resp.status_code}"))
+    return str(data)[:200]
+
+
 @app.command("show")
 def show_leaderboard(
-    sort_by: str = typer.Option("elo_rating", "--sort", "-s", help="Sort by: elo_rating, battle_wins, xp, pokemon_caught"),
+    sort_by: str = typer.Option(
+        "elo_rating", "--sort", "-s", help="Sort by: elo_rating, battle_wins, xp, pokemon_caught"
+    ),
     limit: int = typer.Option(20, "--limit", "-n", help="Number of entries to show"),
     offset: int = typer.Option(0, "--offset", "-o", help="Offset for pagination"),
 ) -> None:
     """Display the global leaderboard."""
     url = f"{_get_server_url()}/leaderboard"
-    try:
-        resp = requests.get(
-            url,
-            params={"sort_by": sort_by, "limit": limit, "offset": offset},
-            timeout=10,
-        )
-    except requests.ConnectionError:
-        console.print("[red]Cannot connect to PokeDo server.[/red] Is it running?")
+    resp = _request(
+        "GET",
+        url,
+        params={"sort_by": sort_by, "limit": limit, "offset": offset},
+    )
+    if resp is None:
         return
 
     if resp.status_code != 200:
-        console.print(f"[red]Error:[/red] {resp.text}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
         return
 
     entries = resp.json()
@@ -100,17 +132,15 @@ def my_ranking(
 ) -> None:
     """Show your own ranking on the leaderboard."""
     url = f"{_get_server_url()}/leaderboard/{username}"
-    try:
-        resp = requests.get(url, timeout=10)
-    except requests.ConnectionError:
-        console.print("[red]Cannot connect to PokeDo server.[/red] Is it running?")
+    resp = _request("GET", url)
+    if resp is None:
         return
 
     if resp.status_code == 404:
         console.print(f"[red]User '{username}' not found on the server.[/red]")
         return
     if resp.status_code != 200:
-        console.print(f"[red]Error:[/red] {resp.text}")
+        console.print(f"[red]Error:[/red] {_error_detail(resp)}")
         return
 
     data = resp.json()

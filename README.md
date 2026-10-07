@@ -489,7 +489,7 @@ All data is stored locally in `~/.pokedo/`:
 
 ## Development
 
-The project includes a FastAPI server (`pokedo/server.py`) for multiplayer battles, a global leaderboard, and cloud synchronization. The server uses PostgreSQL via SQLModel and JWT-based authentication.
+The project includes a FastAPI server (`pokedo/server/` package) for multiplayer battles, a global leaderboard, and cloud synchronization. The server uses PostgreSQL via SQLModel and JWT-based authentication.
 
 ```bash
 # Install with dev dependencies
@@ -624,7 +624,7 @@ pokedo/
 │   ├── screens/       # Screen classes (tasks, etc.)
 │   ├── widgets/       # Reusable UI components
 │   └── styles/        # Textual CSS styling
-├── server.py      # FastAPI server (auth, battles, leaderboard, sync)
+├── server/        # FastAPI server package (auth, battles, leaderboard, sync)
 └── utils/         # Configuration, helpers, sprite rendering
 ```
 

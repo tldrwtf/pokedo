@@ -86,6 +86,22 @@ class TestRewardEngine:
         """Create generation-filtered engine."""
         assert gen1_engine.generation_filter == [1]
 
+    @pytest.mark.asyncio
+    async def test_async_completion_uses_running_event_loop(self, engine, sample_task, monkeypatch):
+        """Async reward processing must not create a nested event loop."""
+        from pokedo.data import database
+
+        monkeypatch.setattr(database.db, "get_active_team", lambda: [])
+        monkeypatch.setattr(engine, "_select_rarity", lambda *_, **__: PokemonRarity.COMMON)
+        monkeypatch.setattr(engine, "_select_pokemon", lambda *_, **__: 25)
+        monkeypatch.setattr(engine, "_check_shiny", lambda *_, **__: False)
+        monkeypatch.setattr(engine, "_calculate_encounter_chance", lambda *_, **__: 0.0)
+
+        result = await engine.process_task_completion_async(sample_task, Trainer(name="Async"))
+
+        assert result.xp_earned == sample_task.xp_reward
+        assert result.encountered is False
+
 
 class TestEncounterChance:
     """Tests for encounter chance calculation."""

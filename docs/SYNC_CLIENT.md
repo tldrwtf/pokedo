@@ -53,10 +53,20 @@ The `push_changes(server_url)` function handles the upload process:
 2.  Constructs a JSON payload containing the batch of changes.
 3.  Sends a `POST` request to `{server_url}/sync`.
     -   **Authentication:** Requires a Bearer token (JWT) in the header.
-    -   **Library:** Uses `requests` (synchronous) for simplicity in this background task.
+    -   **Library:** Uses `httpx` (synchronous client) for the upload.
 4.  If the server responds with 200 OK, the local records are marked as `synced = True`.
 
 ## Usage
+
+### Configuration
+
+The change queue is stored in the local client DB by default (`sqlite:///pokedo.db`).
+
+| Environment variable      | Purpose                                                        |
+|---------------------------|----------------------------------------------------------------|
+| `POKEDO_SYNC_DATABASE_URL` | Explicit URL for the sync-queue DB (takes precedence)         |
+| `POKEDO_DATABASE_URL`      | Honored only if it is a `sqlite:///` URL (backward compat)    |
+| `POKEDO_SECRET_KEY`        | Server-side JWT signing key (not used by the sync client)     |
 
 ### Initialization
 
